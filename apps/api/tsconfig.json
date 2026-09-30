@@ -14,10 +14,13 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "incremental": true,
+    "incremental": false,
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
-    "types": ["vitest/globals", "node"]
+    "types": [
+      "vitest/globals",
+      "node"
+    ]
   }
 }

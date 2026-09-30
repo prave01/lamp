@@ -1,6 +1,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+allowBuilds:
+  '@openrouter/sdk': false
 minimumReleaseAgeExclude:
   - '@turbo/darwin-64@2.11.2'
   - '@turbo/darwin-arm64@2.11.2'
