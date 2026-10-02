@@ -11,12 +11,12 @@ export const CreateIdeaSchema = z.object({
     .default(
       "Generate a idea, give the technical requirements for another builder agent to build an agent",
     ),
-  OPENROUTER_KEY: z.string(),
+  OPENROUTER_KEY: z.string().default("https://openrouter.ai/api/v1"),
 });
 
 export type CreateIdea = z.infer<typeof CreateIdeaSchema>;
 
-export const registerEnv = registerAs("CREATE_IDEA_ENV", () => {
+export const registerEnv = registerAs("ENV", () => {
   return CreateIdeaSchema.parse(process.env);
 });
 
