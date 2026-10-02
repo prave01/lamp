@@ -1,4 +1,2 @@
-import { Module } from '@nestjs/common';
-
 @Module({})
-export class OpenaiModule {}
+export class OpenaiModule { }

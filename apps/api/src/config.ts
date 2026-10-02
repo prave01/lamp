@@ -2,8 +2,6 @@ import { z } from "zod";
 import { ConfigService, registerAs } from "@nestjs/config";
 import { ConfigType } from "@nestjs/config";
 
-export type ENVContext = { name: Array<string> };
-
 export const CreateIdeaSchema = z.object({
   MODEL_NAME: z.string().default("~deepseek/deepseek-pro-latest"),
   SYSTEM_PROMPT: z
@@ -14,14 +12,14 @@ export const CreateIdeaSchema = z.object({
   OPENROUTER_KEY: z.string().default("https://openrouter.ai/api/v1"),
 });
 
-export type CreateIdea = z.infer<typeof CreateIdeaSchema>;
+export type CreateIdeaSchemaType = z.infer<typeof CreateIdeaSchema>;
 
-export const registerEnv = registerAs("ENV", () => {
+export const registerEnv = registerAs("CreateIdea.ENV", () => {
   return CreateIdeaSchema.parse(process.env);
 });
 
-export function getEnvConfig(configService: ConfigService, context?: string) {
-  return configService.get("ENV") as CreateIdea;
+export function getEnvConfig(configService: ConfigService, context: string) {
+  return configService.get("CreateIdea.ENV") as CreateIdeaSchemaType;
 }
 
 export type ENVConfig = ConfigType<typeof registerEnv>;

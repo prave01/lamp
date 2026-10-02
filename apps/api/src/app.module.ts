@@ -33,7 +33,8 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     }),
     CreateIdeaModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => getEnvConfig(configService),
+      useFactory: (configService: ConfigService) =>
+        getEnvConfig(configService, "CreateIdea.ENV"),
       inject: [ConfigService],
     }),
     OpenaiModule,

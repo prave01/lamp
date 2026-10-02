@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from "@nestjs/common";
 import { CreateIdeaController } from "./create-idea.controller";
 import { CreateIdeaService } from "./create-idea.service";
-import { getEnvConfig, type CreateIdea } from "../config";
+import { getEnvConfig, type CreateIdeaSchemaType } from "../config";
 import { OpenaiModule } from "../openai/openai.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
@@ -19,7 +19,7 @@ interface CreateIdeaModuleAsyncOptions<T> {
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configSerivce: ConfigService) => {
-        const envs = getEnvConfig(configSerivce);
+        const envs = getEnvConfig(configSerivce, "CreateIdea.ENV");
         return {
           apiKey: envs.OPENROUTER_KEY,
           modelName: envs.MODEL_NAME,
@@ -31,7 +31,7 @@ interface CreateIdeaModuleAsyncOptions<T> {
 })
 export class CreateIdeaModule {
   static forRootAsync(
-    options: CreateIdeaModuleAsyncOptions<CreateIdea>,
+    options: CreateIdeaModuleAsyncOptions<CreateIdeaSchemaType>,
   ): DynamicModule {
     return {
       module: CreateIdeaModule,

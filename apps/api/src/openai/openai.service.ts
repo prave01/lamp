@@ -27,8 +27,6 @@ export class OpenaiService {
         this.config.sytemPrompt,
       );
 
-      this.logger.log('Before generation', this.conversationHistory);
-
       const response = await this.openai.chat.completions.create({
         messages: this.conversationHistory,
         model: this.config.modelName,
@@ -41,8 +39,6 @@ export class OpenaiService {
           content: response.choices[0].message.content,
         },
       ];
-
-      this.logger.log('After generation', this.conversationHistory);
 
       return response.choices[0].message.content;
     } catch (err) { }
