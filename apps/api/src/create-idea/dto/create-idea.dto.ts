@@ -1,6 +1,7 @@
-import { IsString } from "class-validator";
+import { z } from "zod";
 
-export class CreateIdeaDtop {
-  @IsString()
-  readonly title: string;
-}
+export const CreateIdeaSchema = z.object({
+  idea: z.string(),
+});
+
+export type CreateIdeaSchemaType = z.infer<typeof CreateIdeaSchema>;

@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from "@nestjs/common";
 import { CreateIdeaController } from "./create-idea.controller";
 import { CreateIdeaService } from "./create-idea.service";
-import { getEnvConfig, type CreateIdeaSchemaType } from "../config";
+import { getEnvConfig, type CreateIdeaConfigType } from "../config";
 import { OpenaiModule } from "../openai/openai.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
@@ -23,7 +23,8 @@ interface CreateIdeaModuleAsyncOptions<T> {
         return {
           apiKey: envs.OPENROUTER_KEY,
           modelName: envs.MODEL_NAME,
-          sytemPrompt: envs.SYSTEM_PROMPT,
+          systemPrompt: envs.SYSTEM_PROMPT,
+          baseURL: envs.OPENROUTER_BASE_URL,
         };
       },
     }),
@@ -31,7 +32,7 @@ interface CreateIdeaModuleAsyncOptions<T> {
 })
 export class CreateIdeaModule {
   static forRootAsync(
-    options: CreateIdeaModuleAsyncOptions<CreateIdeaSchemaType>,
+    options: CreateIdeaModuleAsyncOptions<CreateIdeaConfigType>,
   ): DynamicModule {
     return {
       module: CreateIdeaModule,

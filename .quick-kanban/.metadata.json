@@ -1,1 +1,1 @@
-{"id_pool": 3, "order": {"In Progress": [], "Done": [3, 2, 1], "Backlog": []}, "categories": ["Backlog", "In Progress", "Done"], "default_category": "Backlog"}
+{"id_pool": 6, "order": {"In Progress": [], "Done": [5, 4, 3, 2, 1], "Backlog": [6]}, "categories": ["Backlog", "In Progress", "Done"], "default_category": "Backlog"}

@@ -4,7 +4,8 @@ import { OpenaiService } from "./openai.service";
 export type OpenaiConfig = {
   apiKey: string;
   modelName: string;
-  sytemPrompt: string;
+  systemPrompt: string;
+  baseURL: string;
 };
 
 export const OPENAI_CONFIG = "OPENAI_CONFIG";

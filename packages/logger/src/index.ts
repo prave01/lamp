@@ -9,7 +9,7 @@ export function createLogger(name: string, opts: LoggerOptions = {}): Logger {
   const sas = `${name} sucks` as string;
   return pino({
     name: sas,
-    level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
+    level: process.env.LOG_LEVEL ?? (isDev ? "info" : "info"),
     transport: isDev
       ? {
         target: "pino-pretty",

@@ -1,5 +1,6 @@
 import { type ChatCompletionMessageParam } from "openai/resources.mjs";
 
+// should move to responses api
 export const buildMessageHistory = (
   lastUserMessage: string,
   conversationHistory: ChatCompletionMessageParam[] = [],
