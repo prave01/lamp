@@ -1,12 +1,14 @@
-import { type ChatCompletionMessageParam } from "openai/resources.mjs";
+import OpenAI from "openai";
+
+export type OpenAIInput = OpenAI.Responses.ResponseInput;
 
 // should move to responses api
 export const buildMessageHistory = (
   lastUserMessage: string,
-  conversationHistory: ChatCompletionMessageParam[] = [],
+  conversationHistory: OpenAIInput = [],
   systemPrompt: string,
-): ChatCompletionMessageParam[] => {
-  let updatedHistory: ChatCompletionMessageParam[];
+): OpenAIInput => {
+  let updatedHistory: OpenAIInput;
 
   return (updatedHistory = [
     {

@@ -1,1 +1,1 @@
-{"id": 6, "title": "Should replace the chatcompletion with responses api in openai.service.ts", "created": "2026-10-06 23:58:26", "category": "Backlog"}
+{"id": 6, "category": "Done", "created": "2026-10-06 23:58:26", "title": "Should replace the chatcompletion with responses api in openai.service.ts"}

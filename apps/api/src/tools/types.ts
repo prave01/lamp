@@ -1,5 +1,30 @@
-import { zodDef } from "openai/_vendor/zod-to-json-schema/util.mjs";
 import z from "zod";
+
+export const ToolDefinitionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  usageInstruction: z.string(),
+  inputSchema: z.custom<z.ZodType>(),
+  execute: z.custom<(args: any) => any>(),
+});
+
+export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
+
+export type CreateTool<TInputSchema extends z.ZodType = z.ZodType> = {
+  name: string;
+  description: string;
+  usageInstruction: string;
+  inputSchema: TInputSchema;
+  execute: (input: z.infer<TInputSchema>) => Promise<any> | any;
+};
+
+export const ToolRegistrySchema = z.array(
+  z.object({
+    tool: ToolDefinitionSchema,
+    availableFor: z.array(z.uuid()),
+  }),
+);
 
 export const AgentSpecSchema = z.object({
   identity: z.object({
@@ -20,7 +45,7 @@ export const AgentSpecSchema = z.object({
 
   capabilities: z.array(z.string()),
 
-  tools: z.array(z.string()),
+  tools: z.array(ToolDefinitionSchema),
 
   connections: z.array(z.object({})),
 
@@ -49,29 +74,4 @@ export const AgentSpecSchema = z.object({
 
 export type AgentSpec = z.infer<typeof AgentSpecSchema>;
 
-export const ToolDefinitionSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  usageInstruction: z.string(),
-  inputSchema: z.custom<z.ZodType>(),
-  execute: z.function(),
-});
-
-export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
-
-export type CreateTool<TInputSchema extends z.ZodType = z.ZodType> = {
-  name: string;
-  description: string;
-  usageInstruction: string;
-  inputSchema: TInputSchema;
-  execute: (input: z.infer<TInputSchema>) => Promise<any> | any;
-};
-
-export const ToolRegistrySchema = z.array(
-  z.object({
-    tool: ToolDefinitionSchema,
-    availableFor: z.array(z.uuid()),
-  }),
-);
-
-export type ToolRegistry = z.infer<typeof ToolRegistrySchema>;
+export type ToolRegistryType = z.infer<typeof ToolRegistrySchema>;
