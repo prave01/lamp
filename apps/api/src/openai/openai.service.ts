@@ -4,11 +4,8 @@ import { buildMessageHistory } from '../libs/ai';
 import { OPENAI_CONFIG, type OpenaiConfig } from './openai.module';
 import { type ResponseInput } from 'openai/resources/responses/responses';
 import { getTools } from '../tools/toolRegistry';
-import { AgentToolRequest, executor, LLM_TOOL } from '../libs/tool';
-import {
-  toResponseInputItem,
-  toResponseInputItems,
-} from 'openai/lib/responses/ResponseInputItems.mjs';
+import { executor, LLM_TOOL } from '../libs/tool';
+import { toResponseInputItems } from 'openai/lib/responses/ResponseInputItems';
 
 @Injectable()
 export class OpenaiService {
@@ -38,12 +35,13 @@ export class OpenaiService {
 
       const tools = getTools({
         tools: ['tool-websearch'],
-        agentId: 'all',
+        agentId: 'core',
       });
 
       const llmtool = LLM_TOOL(tools, 'openai');
 
-      this.logger.log('LLM tools', llmtool);
+      this.logger.log('LLM tools');
+      this.logger.log(llmtool);
 
       while (true) {
         const response = await this.openai.responses.create({
@@ -67,11 +65,17 @@ export class OpenaiService {
 
         this.conversationHistory = [...this.conversationHistory, ...toolCalls];
 
+        this.logger.log('Conversation after tool call');
+        this.logger.log(this.conversationHistory);
+
         for (const call of toolCalls) {
           this.logger.log('Tool call is happening');
           this.logger.log(call.name);
+
           const args = JSON.parse(call.arguments);
-          const toolResult = await executor('tool-websearch', args);
+
+          const toolResult = await executor('core', `tool-${call.name}`, args);
+
           this.conversationHistory.push({
             type: 'function_call_output',
             call_id: call.call_id,

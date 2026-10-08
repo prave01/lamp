@@ -1,7 +1,9 @@
 import z from "zod";
 import type { CreateTool, ToolDefinition } from "../tools/types";
 import OpenAI from "openai";
-import { getTools, ToolRegistry } from "../tools/toolRegistry";
+import { getTools } from "../tools/toolRegistry";
+// import { Logger } from "@nestjs/common";
+// const logger = new Logger("libs/tool");
 
 export function CreateTool<TInputSchema extends z.ZodType>(
   tool: CreateTool<TInputSchema>,
@@ -44,17 +46,15 @@ export type AgentToolRequest = {
 };
 
 export function ToolsResolver(input: AgentToolRequest) {
-  const availabeTools = getTools(input); //needs both agentId and the tools
+  const availabeTools = getTools(input);
   return availabeTools;
 }
 
-export const executor = async (toolId: string, args: any) => {
+export const executor = async (agentId: string, toolId: string, args: any) => {
   const tool = await getTools({
-    agentId: "all",
-    tools: ["tool-websearch"],
+    agentId: agentId,
+    tools: [toolId],
   });
 
-  const res = tool[0].execute(args);
-
-  return res;
+  return await tool[0].execute(args);
 };

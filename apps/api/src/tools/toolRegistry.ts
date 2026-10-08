@@ -2,10 +2,13 @@ import { ToolDefinition, type ToolRegistryType } from "./types";
 import { Tools } from "./index";
 import { type AgentToolRequest } from "../libs/tool";
 
+import { Logger } from "@nestjs/common";
+const logger = new Logger("ToolRegistry");
+
 export const ToolRegistry: ToolRegistryType = [
   {
     tool: Tools.webSearchTool,
-    availableFor: ["all"],
+    availableFor: ["core"],
   },
 ];
 
@@ -16,18 +19,20 @@ export function getTools(input: AgentToolRequest): Array<ToolDefinition> {
     const registeredTool = ToolRegistry.find((i) => i.tool.id === tool);
 
     if (!registeredTool) {
-      console.error("No tool found", tool);
+      logger.error(`No tool found for ${tool}`);
       continue;
     }
 
-    if (!registeredTool.availableFor.includes("all")) {
+    if (
+      !registeredTool.availableFor.includes(input.agentId) ||
+      !registeredTool.availableFor.includes("core")
+    ) {
       continue;
     }
 
     if (!registeredTool?.availableFor.includes(input.agentId)) {
-      console.error(
-        "Agent not allowed to use this tool",
-        registeredTool?.tool.name,
+      logger.error(
+        `Agent not allowed to use this tool ${tool} for agent ${input.agentId}`,
       );
       continue;
     }
