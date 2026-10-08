@@ -2,7 +2,6 @@ import OpenAI from "openai";
 
 export type OpenAIInput = OpenAI.Responses.ResponseInput;
 
-// should move to responses api
 export const buildMessageHistory = (
   lastUserMessage: string,
   conversationHistory: OpenAIInput = [],

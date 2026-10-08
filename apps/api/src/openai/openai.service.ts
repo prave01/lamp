@@ -1,8 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import { buildMessageHistory } from '../libs/ai';
+import { buildMessageHistory, type OpenAIInput } from '../libs/ai';
 import { OPENAI_CONFIG, type OpenaiConfig } from './openai.module';
-import { type ResponseInput } from 'openai/resources/responses/responses';
 import { getTools } from '../tools/toolRegistry';
 import { executor, LLM_TOOL } from '../libs/tool';
 import { toResponseInputItems } from 'openai/lib/responses/ResponseInputItems';
@@ -11,7 +10,7 @@ import { toResponseInputItems } from 'openai/lib/responses/ResponseInputItems';
 export class OpenaiService {
   private readonly logger = new Logger(OpenaiService.name);
   private readonly openai: OpenAI;
-  private conversationHistory: ResponseInput;
+  private conversationHistory: OpenAIInput;
 
   constructor(
     @Inject(OPENAI_CONFIG)
@@ -90,7 +89,7 @@ export class OpenaiService {
     }
   }
 
-  getConversationHistory(): ResponseInput {
+  getConversationHistory(): OpenAIInput {
     return this.conversationHistory;
   }
 }
