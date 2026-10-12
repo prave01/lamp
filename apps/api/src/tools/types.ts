@@ -11,6 +11,14 @@ export const ToolDefinitionSchema = z.object({
 
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
+export const ModelSpec = z.object({
+  provider: z.enum(["anthropic", "openai"]).default("openai"),
+  modelName: z.string(),
+  settings: z.object({}),
+});
+
+export type ModelSpecType = z.infer<typeof ModelSpec>;
+
 export type CreateTool<TInputSchema extends z.ZodType = z.ZodType> = {
   name: string;
   description: string;
@@ -33,11 +41,7 @@ export const AgentSpecSchema = z.object({
     description: z.string(),
   }),
 
-  model: z.object({
-    provider: z.enum(["anthropic", "openai"]).default("openai"),
-    model: z.string(),
-    settings: z.object({}),
-  }),
+  model: ModelSpec,
 
   instructions: z.object({
     systemPrompt: z.string(),

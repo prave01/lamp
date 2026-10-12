@@ -3,8 +3,8 @@ import { OpenaiService } from "./openai.service";
 
 export type OpenaiConfig = {
   apiKey: string;
-  modelName: string;
-  systemPrompt: string;
+  modelName?: string;
+  systemPrompt?: string;
   baseURL: string;
 };
 

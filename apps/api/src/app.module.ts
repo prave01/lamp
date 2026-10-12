@@ -8,6 +8,7 @@ import { LoggerModule } from "nestjs-pino";
 import { getEnvConfig, registerEnv } from "./config.js";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { OpenaiModule } from "./openai/openai.module";
+import { AgentRunnerModule } from './agent-runner/agent-runner.module';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -33,6 +34,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       inject: [ConfigService],
     }),
     OpenaiModule,
+    AgentRunnerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

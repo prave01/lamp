@@ -22,12 +22,20 @@ export class OpenaiService {
     });
   }
 
-  async generateText(input: string): Promise<string> {
+  async generateText(
+    input: string,
+    systemPrompt: string = this.config.systemPrompt ||
+      'You are a helpful assistant.',
+    modelName: string = this.config.modelName || 'gpt-4o-mini',
+  ): Promise<string> {
     try {
+      this.logger.log(`Generating text with model: ${modelName}`);
+      this.logger.log(`System prompt: ${systemPrompt}`);
+
       this.conversationHistory = buildMessageHistory(
         input,
         this.conversationHistory ?? [],
-        'Act like a conversational bot',
+        systemPrompt,
       );
 
       this.logger.log(this.conversationHistory);
@@ -45,7 +53,7 @@ export class OpenaiService {
       while (true) {
         const response = await this.openai.responses.create({
           input: this.conversationHistory ?? [],
-          model: this.config.modelName,
+          model: modelName,
           tools: llmtool,
         });
 
