@@ -31,6 +31,7 @@
     "class-validator": "^0.15.1",
     "firecrawl": "^4.42.4",
     "nestjs-pino": "^5.2.0",
+    "nestjs-uuid": "^0.1.4",
     "openai": "^7.25.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

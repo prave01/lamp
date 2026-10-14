@@ -2,6 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@nestjs/core': true
   '@openrouter/sdk': false
 minimumReleaseAgeExclude:
   - '@turbo/darwin-64@2.11.2'

@@ -1,10 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ModelSpecType, type AgentSpec } from "../tools/types";
 import { OpenaiService } from "../openai/openai.service";
+import { UuidService } from "nestjs-uuid";
+import { WrokflowService } from "./createWorkflow.service";
 
 @Injectable()
 export class AgentRunnerService {
   private logger = new Logger(AgentRunnerService.name);
+  private uuid: UuidService;
+  private workflow: WrokflowService;
 
   private name: string;
   private id: string;
@@ -12,22 +16,31 @@ export class AgentRunnerService {
   private description: string;
   private systemPrompt: string;
 
-  constructor(
-    // private readonly args: AgentSpec?= {},
-    private readonly openaiService: OpenaiService,
-  ) {
-    //about the current instance
-    // this.id = args.identity.id;
-    // this.name = args.identity.name;
-    // this.description = args.identity.description;
-    // this.model = args.model;
-    // this.systemPrompt = args.instructions.systemPrompt;
+  private sandBoxId: string;
+
+  constructor(private readonly openaiService: OpenaiService) { }
+
+  // constructor(private readonly args: AgentSpec) {
+  //   //about the current instance
+  //   this.id = args.identity.id;
+  //   this.name = args.identity.name;
+  //   this.description = args.identity.description;
+  //   this.model = args.model;
+  //   this.systemPrompt = args.instructions.systemPrompt;
+  // }
+
+  async initSandBox() {
+    this.sandBoxId = this.uuid.generate();
+    this.logger.log(`SandBoxId ${this.sandBoxId}`);
+
+    const createdWorkflow = this.workflow;
   }
 
   async run() {
     const res = await this.openaiService.generateText(
-      "what is your name",
-      "Your name is jiya, a friendly and helpful assistant. You are a large language model trained by OpenAI. You are capable of answering questions, providing explanations, and assisting with a wide range of tasks.",
+      "Start the agent",
+      [""],
+      this.systemPrompt ?? "You are a helpful assistant.",
       "gpt-4o-mini",
     );
 

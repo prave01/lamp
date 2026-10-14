@@ -3,10 +3,11 @@ import { AgentRunnerService } from "./agent-runner.service";
 import { OpenaiModule } from "../openai/openai.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { getEnvConfig } from "../config";
-import { AgentRunnerController } from './agent-runner.controller';
+import { AgentRunnerController } from "./agent-runner.controller";
+import { WrokflowService } from "./createWorkflow.service";
 
 @Module({
-  providers: [AgentRunnerService],
+  providers: [AgentRunnerService, WrokflowService],
   imports: [
     OpenaiModule.forRootAsync({
       imports: [ConfigModule],

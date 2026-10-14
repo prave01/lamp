@@ -8,12 +8,14 @@ import { LoggerModule } from "nestjs-pino";
 import { getEnvConfig, registerEnv } from "./config.js";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { OpenaiModule } from "./openai/openai.module";
-import { AgentRunnerModule } from './agent-runner/agent-runner.module';
+import { AgentRunnerModule } from "./agent-runner/agent-runner.module";
+import { UuidModule } from "nestjs-uuid";
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
   imports: [
+    UuidModule,
     LoggerModule.forRoot({
       pinoHttp: {
         logger: createLogger("api"),

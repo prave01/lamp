@@ -16,7 +16,9 @@ export class CreateIdeaService {
 
       if (!parse.success) throw new Error(parse.error.message);
 
-      const response = await this.openaiService.generateText(parse.data.idea);
+      const response = await this.openaiService.generateText(parse.data.idea, [
+        "",
+      ]);
 
       this.logger.log(`Generated idea: ${response}`);
 
