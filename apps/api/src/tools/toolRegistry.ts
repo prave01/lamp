@@ -8,7 +8,7 @@ const logger = new Logger("ToolRegistry");
 export const ToolRegistry: ToolRegistryType = [
   {
     tool: Tools.webSearchTool,
-    availableFor: ["core"],
+    availableFor: ["core", "agent-runner"],
   },
 ];
 

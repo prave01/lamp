@@ -1,1 +1,1 @@
-{"id": 11, "title": "Stream events back from the openai module once the generateText called", "created": "2026-10-13 20:19:02", "category": "In Progress"}
+{"id": 11, "category": "Done", "created": "2026-10-13 20:19:02", "title": "Stream events back from the openai module once the generateText called"}

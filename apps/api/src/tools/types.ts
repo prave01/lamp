@@ -49,7 +49,7 @@ export const AgentSpecSchema = z.object({
 
   capabilities: z.array(z.string()),
 
-  tools: z.array(ToolDefinitionSchema),
+  tools: z.array(z.string()),
 
   connections: z.array(z.object({})),
 

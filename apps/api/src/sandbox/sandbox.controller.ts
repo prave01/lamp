@@ -1,9 +1,9 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { AgentRunnerService } from './agent-runner.service';
+import { SandBoxService } from './sandbox.service';
 
 @Controller('agent-runner')
-export class AgentRunnerController {
-  constructor(private readonly agentRunnerService: AgentRunnerService) { }
+export class SandBoxController {
+  constructor(private readonly agentRunnerService: SandBoxService) { }
 
   @Post('sample-run')
   async sampleRun(

@@ -14,7 +14,7 @@ export function CreateTool<TInputSchema extends z.ZodType>(
   };
 }
 
-type OpenAITool = OpenAI.Responses.Tool;
+export type OpenAITool = OpenAI.Responses.Tool;
 
 export function LLM_TOOL(
   tools: ToolDefinition[],

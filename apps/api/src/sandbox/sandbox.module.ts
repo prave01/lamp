@@ -1,13 +1,13 @@
 import { Module } from "@nestjs/common";
-import { AgentRunnerService } from "./agent-runner.service";
+import { SandBoxService } from "./sandbox.service";
 import { OpenaiModule } from "../openai/openai.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { getEnvConfig } from "../config";
-import { AgentRunnerController } from "./agent-runner.controller";
-import { WrokflowService } from "./createWorkflow.service";
+import { SandBoxController } from "./sandbox.controller";
+import { AgentWorkflowService } from "./createAgentWorkflow.service";
 
 @Module({
-  providers: [AgentRunnerService, WrokflowService],
+  providers: [SandBoxService, AgentWorkflowService],
   imports: [
     OpenaiModule.forRootAsync({
       imports: [ConfigModule],
@@ -23,6 +23,6 @@ import { WrokflowService } from "./createWorkflow.service";
       },
     }),
   ],
-  controllers: [AgentRunnerController],
+  controllers: [SandBoxController],
 })
-export class AgentRunnerModule { }
+export class SandBoxModule { }
