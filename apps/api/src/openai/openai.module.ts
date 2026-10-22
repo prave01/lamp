@@ -28,9 +28,7 @@ export class OpenaiModule {
           inject: options.inject ?? [],
           useFactory: options.useFactory,
         },
-        OpenaiService,
       ],
-      exports: [OpenaiService],
     };
   }
 }

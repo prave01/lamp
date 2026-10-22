@@ -25,26 +25,26 @@ export class OpenaiService {
   private readonly logger = new Logger(OpenaiService.name);
   private conversationHistory: OpenAI.Responses.ResponseInputItem[] = [];
 
-  private readonly openai = new OpenAI();
+  private readonly openai: OpenAI;
 
   private readonly agentID: string;
   private systemPrompt: string;
   private llmTool: OpenAI.Responses.Tool[];
   private model: string;
+  private name: string;
 
   constructor(
-    private args: {
-      agentID: string;
-      name: string;
-      sysPrompt: string;
-      tools: OpenAI.Responses.Tool[];
-      model: string;
-    },
+    agentId: string,
+    name: string,
+    sysPrompt: string,
+    tools: OpenAI.Responses.Tool[],
+    model: string,
   ) {
-    this.agentID = args.agentID;
-    this.systemPrompt = args.sysPrompt;
-    this.llmTool = args.tools;
-    this.model = args.model;
+    this.agentID = agentId;
+    this.name = name;
+    this.systemPrompt = sysPrompt;
+    this.llmTool = tools;
+    this.model = model;
   }
 
   async generateText(): Promise<GenerateTextResult> {

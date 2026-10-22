@@ -1,14 +1,13 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { registerEnv } from "../config";
-import { type ConfigType } from "@nestjs/config";
-import { OpenaiService } from "../openai/openai.service";
+import { Injectable, Logger } from "@nestjs/common";
 import { CreateIdeaSchema, CreateIdeaSchemaType } from "./dto/create-idea.dto";
+import { db } from "../database";
+import { usersTable } from "../database/schema/sample";
 
 @Injectable()
 export class CreateIdeaService {
   private readonly logger = new Logger(CreateIdeaService.name);
 
-  constructor(private readonly openaiService: OpenaiService) { }
+  constructor() { }
 
   async generateIdea(input: CreateIdeaSchemaType): Promise<string> {
     try {
@@ -16,13 +15,16 @@ export class CreateIdeaService {
 
       if (!parse.success) throw new Error(parse.error.message);
 
-      const response = await this.openaiService.generateText(parse.data.idea, [
-        "",
-      ]);
+      const res = await db
+        .insert(usersTable)
+        .values({
+          name: "praveen",
+          age: 10,
+          email: "shi@email.com",
+        })
+        .returning();
 
-      this.logger.log(`Generated idea: ${response}`);
-
-      return response;
+      return JSON.stringify(res);
     } catch (err) {
       if (err instanceof Error) throw new Error(err.message);
       throw new Error("Unkown error");

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   ModelSpecType,
   type ToolDefinition,
@@ -35,13 +35,13 @@ export class SandBoxService {
       tools: args.tools,
     });
 
-    this.openaiService = new OpenaiService({
-      agentID: this.id,
-      name: this.name,
-      sysPrompt: this.systemPrompt,
-      tools: LLM_TOOL(this.tools),
-      model: this.model.modelName,
-    });
+    this.openaiService = new OpenaiService(
+      this.id,
+      this.name,
+      this.systemPrompt,
+      LLM_TOOL(this.tools),
+      this.model.modelName,
+    );
   }
 
   async initSandBox() {

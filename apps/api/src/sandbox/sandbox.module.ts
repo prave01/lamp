@@ -1,13 +1,11 @@
 import { Module } from "@nestjs/common";
-import { SandBoxService } from "./sandbox.service";
 import { OpenaiModule } from "../openai/openai.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { getEnvConfig } from "../config";
-import { SandBoxController } from "./sandbox.controller";
 import { AgentWorkflowService } from "./createAgentWorkflow.service";
 
 @Module({
-  providers: [SandBoxService, AgentWorkflowService],
+  providers: [AgentWorkflowService],
   imports: [
     OpenaiModule.forRootAsync({
       imports: [ConfigModule],
@@ -23,6 +21,5 @@ import { AgentWorkflowService } from "./createAgentWorkflow.service";
       },
     }),
   ],
-  controllers: [SandBoxController],
 })
 export class SandBoxModule { }
