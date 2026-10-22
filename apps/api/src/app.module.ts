@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { createObserveModule } from "@nestjs/observe";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service.js";
-import { CreateIdeaModule } from "./create-idea/create-idea.module";
+import { CreateIdeaModule } from "./session/session.module";
 import { createLogger } from "@repo/logger";
 import { LoggerModule } from "nestjs-pino";
 import { getEnvConfig, registerEnv } from "./config.js";

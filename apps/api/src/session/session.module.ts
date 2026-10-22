@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from "@nestjs/common";
-import { CreateIdeaController } from "./create-idea.controller";
-import { CreateIdeaService } from "./create-idea.service";
-import { getEnvConfig, type CreateIdeaConfigType } from "../config";
+import { SessionController } from "./session.controller";
+import { SessionService } from "./session.service";
+import { getEnvConfig, type SessionConfig } from "../config";
 import { OpenaiModule } from "../openai/openai.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
@@ -12,8 +12,8 @@ interface CreateIdeaModuleAsyncOptions<T> {
 }
 
 @Module({
-  controllers: [CreateIdeaController],
-  providers: [CreateIdeaService],
+  controllers: [SessionController],
+  providers: [SessionService],
   imports: [
     OpenaiModule.forRootAsync({
       imports: [ConfigModule],
@@ -32,7 +32,7 @@ interface CreateIdeaModuleAsyncOptions<T> {
 })
 export class CreateIdeaModule {
   static forRootAsync(
-    options: CreateIdeaModuleAsyncOptions<CreateIdeaConfigType>,
+    options: CreateIdeaModuleAsyncOptions<SessionConfig>,
   ): DynamicModule {
     return {
       module: CreateIdeaModule,
