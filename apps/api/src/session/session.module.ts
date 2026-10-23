@@ -1,34 +1,19 @@
 import { DynamicModule, Module } from "@nestjs/common";
 import { SessionController } from "./session.controller";
 import { SessionService } from "./session.service";
-import { getEnvConfig, type SessionConfig } from "../config";
+import { type SessionConfig } from "../config";
 import { OpenaiModule } from "../openai/openai.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
 
 interface CreateIdeaModuleAsyncOptions<T> {
   inject: any[];
   imports: any[];
-  useFactory: (...args: any[]) => T | Promise<T>;
+  useFactory: (...args: any[]) => T;
 }
 
 @Module({
   controllers: [SessionController],
   providers: [SessionService],
-  imports: [
-    OpenaiModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configSerivce: ConfigService) => {
-        const envs = getEnvConfig(configSerivce, "SessionConfig.ENV");
-        return {
-          apiKey: envs.OPENROUTER_KEY,
-          modelName: envs.MODEL_NAME,
-          systemPrompt: envs.SYSTEM_PROMPT,
-          baseURL: envs.OPENROUTER_BASE_URL,
-        };
-      },
-    }),
-  ],
+  imports: [OpenaiModule],
 })
 export class SessionModule {
   static forRootAsync(
@@ -39,7 +24,7 @@ export class SessionModule {
       imports: options.imports,
       providers: [
         {
-          provide: "CREATE_IDEA_CONFIG",
+          provide: "session_config",
           inject: options.inject,
           useFactory: options.useFactory,
         },

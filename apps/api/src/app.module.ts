@@ -5,7 +5,7 @@ import { AppService } from "./app.service.js";
 import { SessionModule } from "./session/session.module";
 import { createLogger } from "@repo/logger";
 import { LoggerModule } from "nestjs-pino";
-import { getEnvConfig, registerEnv } from "./config.js";
+import { getEnvConfig, registerSandboxEnv, registerSessionEnv } from "./config";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { OpenaiModule } from "./openai/openai.module";
 import { SandBoxModule } from "./sandbox/sandbox.module";
@@ -24,7 +24,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       },
     }),
     ConfigModule.forRoot({
-      load: [registerEnv],
+      load: [registerSessionEnv, registerSandboxEnv],
       isGlobal: true,
       envFilePath: ".env.local",
       ignoreEnvVars: true,
@@ -32,7 +32,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     SessionModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) =>
-        getEnvConfig(configService, "CreateIdea.ENV"),
+        getEnvConfig(configService, "SessionConfig.ENV"),
       inject: [ConfigService],
     }),
     OpenaiModule,

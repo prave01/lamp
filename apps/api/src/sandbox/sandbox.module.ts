@@ -6,20 +6,6 @@ import { AgentWorkflowService } from "./createAgentWorkflow.service";
 
 @Module({
   providers: [AgentWorkflowService],
-  imports: [
-    OpenaiModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const envs = getEnvConfig(configService, "CreateIdea.ENV");
-        return {
-          apiKey: envs.OPENROUTER_KEY,
-          baseURL: envs.OPENROUTER_BASE_URL,
-          // modelName: envs.MODEL_NAME,
-          // systemPrompt: envs.SYSTEM_PROMPT,
-        };
-      },
-    }),
-  ],
+  imports: [],
 })
 export class SandBoxModule { }

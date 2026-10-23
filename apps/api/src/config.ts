@@ -1,26 +1,54 @@
-import { z } from "zod";
+import { z, ZodObject } from "zod";
 import { ConfigService, registerAs } from "@nestjs/config";
 import { ConfigType } from "@nestjs/config";
 
+export const SessionOutputSchema = z.object({
+  title: z.string().describe("Title for the session"),
+  description: z.string().describe("Description about the session"),
+});
+
+export type SessionOutputSchemaType = z.infer<typeof SessionOutputSchema>;
+
 export const SessionConfigSchema = z.object({
-  MODEL_NAME: z.string().default("~deepseek/deepseek-pro-latest"),
-  SYSTEM_PROMPT: z
+  SESSION_MODEL_NAME: z.string().default("~deepseek/deepseek-pro-latest"),
+  SESSION_SYSTEM_PROMPT: z
     .string()
     .default(
       "Generate a idea, give the technical requirements for another builder agent to build an agent",
     ),
-  OPENROUTER_KEY: z.string(),
-  OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
+  SESSION_OUTPUT_SCHEMA: z
+    .custom<ZodObject<any>>()
+    .default(SessionOutputSchema),
+  SESSION_OPENROUTER_KEY: z.string(),
+  SESSION_OPENROUTER_BASE_URL: z
+    .string()
+    .default("https://openrouter.ai/api/v1"),
 });
+
+export const SandBoxConfigSchema = z.object({
+  SANDBOX_NAME: z.string(),
+});
+
+export type SandboxConfig = z.infer<typeof SandBoxConfigSchema>;
 
 export type SessionConfig = z.infer<typeof SessionConfigSchema>;
 
-export const registerEnv = registerAs("SessionConfig.ENV", () => {
+export const registerSessionEnv = registerAs("SessionConfig.ENV", () => {
   return SessionConfigSchema.parse(process.env);
 });
 
-export function getEnvConfig(configService: ConfigService, context: string) {
-  return configService.get("SessionConfig.ENV") as SessionConfig;
-}
+export const registerSandboxEnv = registerAs("SandboxConfig.ENV", () => {
+  return SandBoxConfigSchema.parse(process.env);
+});
 
-export type ENVConfig = ConfigType<typeof registerEnv>;
+export type EnvConfigTypes = {
+  "SessionConfig.ENV": SessionConfig;
+  "SandboxConfig.ENV": SandboxConfig;
+};
+
+export function getEnvConfig<K extends keyof EnvConfigTypes>(
+  configService: ConfigService,
+  context: K,
+): EnvConfigTypes[K] {
+  return configService.get(coSANDBOX_NAMEntext)!;
+}

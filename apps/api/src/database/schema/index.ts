@@ -6,11 +6,13 @@ import {
   timestamp,
   text,
   json,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const sessionTable = pgTable("sessions", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  name: varchar().notNull(),
+  id: uuid().primaryKey().defaultRandom(),
+  title: varchar().notNull(),
+  description: text().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -19,8 +21,8 @@ export const sessionTable = pgTable("sessions", {
 });
 
 export const sandboxTable = pgTable("sandboxes", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  sessionId: integer("session_id")
+  id: uuid().primaryKey().defaultRandom(),
+  sessionId: uuid("session_id")
     .unique()
     .notNull()
     .references(() => sessionTable.id),
@@ -34,8 +36,8 @@ export const sandboxTable = pgTable("sandboxes", {
 });
 
 export const workflowTable = pgTable("workflows", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  sandboxId: integer("sandbox_id")
+  id: uuid().primaryKey().defaultRandom(),
+  sandboxId: uuid("sandbox_id")
     .notNull()
     .references(() => sandboxTable.id),
   name: text().notNull(),
@@ -45,8 +47,8 @@ export const workflowTable = pgTable("workflows", {
 });
 
 export const workflowVersionTable = pgTable("workflow_versions", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  workflowId: integer()
+  id: uuid().primaryKey().defaultRandom(),
+  workflowId: uuid()
     .notNull()
     .references(() => workflowTable.id),
   name: text().notNull(),

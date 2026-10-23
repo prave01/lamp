@@ -3,15 +3,13 @@ import {
   Logger,
   InternalServerErrorException,
   ServiceUnavailableException,
-  Inject,
-} from '@nestjs/common';
-import OpenAI from 'openai';
-import { executor } from '../libs/tool';
-import { registerEnv, type SessionConfig } from '../config';
-import { OpenAIInput } from '../libs/ai';
-import { zodTextFormat } from 'openai/helpers/zod';
-import { ZodJSONSchema, ZodObject } from 'zod';
-import { z } from 'zod';
+} from "@nestjs/common";
+import OpenAI from "openai";
+import { executor } from "../libs/tool";
+import { OpenAIInput } from "../libs/ai";
+import { zodTextFormat } from "openai/helpers/zod";
+import { ZodObject, z } from "zod";
+import pc from "picocolors";
 
 /** Shape returned to the caller on success. */
 export interface GenerateTextResult {
@@ -31,84 +29,103 @@ export class OpenaiService {
   private readonly logger = new Logger(OpenaiService.name);
   private conversationHistory: OpenAI.Responses.ResponseInputItem[] = [];
 
-  private readonly openai: OpenAI;
+  private openai: OpenAI;
+
+  public isInstanceCreated: boolean;
 
   private agentID: string;
-  private systemPrompt: string;
   private llmTool: OpenAI.Responses.Tool[];
   private model: string;
   private name: string;
 
-  constructor(
-    @Inject(registerEnv.KEY)
-    private readonly env: SessionConfig,
+  private apiKey: string;
+  private baseUrl: string;
+  private systemPrompt: string;
+  private outputSchema: ZodObject;
+
+  constructor() { }
+
+  createOpenAIInstance(
+    serviceName: string,
+    apiKey: string,
+    baseUrl: string,
+    systemPrompt: string,
+    modelName: string,
+    outputSchema: ZodObject,
   ) {
-    this.openai = new OpenAI({
-      baseURL: env.OPENROUTER_BASE_URL,
-      apiKey: env.OPENROUTER_KEY,
-    });
+    if (apiKey && baseUrl && systemPrompt && serviceName && outputSchema) {
+      this.apiKey = apiKey;
+      this.baseUrl = baseUrl;
+      this.systemPrompt = systemPrompt;
+      this.outputSchema = outputSchema;
+      this.model = modelName;
+
+      this.openai = new OpenAI({
+        baseURL: this.baseUrl,
+        apiKey: this.apiKey,
+      });
+
+      this.isInstanceCreated = true;
+
+      this.logger.log(
+        `OpenAI instance created for ${pc.bgBlue(pc.black(serviceName))}`,
+      );
+
+      return;
+    }
   }
 
-  async streamText(input: {
-    sysPrompt: string;
-    model: string;
-    query: string;
-    outputSchema?: ZodObject;
-    agentId?: string;
-    name?: string;
-    tools?: OpenAI.Responses.Tool[];
-  }): Promise<GenerateTextResult> {
-    this.agentID = input.agentId ?? `agent-${Date.now()}`;
-    this.name = input.name ?? `agent-${Date.now()}`;
-    this.systemPrompt = input.sysPrompt;
-    this.llmTool = input.tools ?? [];
-    this.model = input.model;
+  async streamText(query: string): Promise<GenerateTextResult> {
+    if (!this.isInstanceCreated) {
+      throw new Error("Please create an OpenAI instance");
+    }
 
     const MAX_TURNS = 10;
 
     this.conversationHistory = [
       ...this.conversationHistory,
       {
-        role: 'system',
-        content: this.env.SYSTEM_PROMPT || this.systemPrompt,
+        role: "system",
+        content: this.systemPrompt,
       },
       {
-        role: 'user',
-        content: input.query,
+        role: "user",
+        content: query,
       },
     ];
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const toolCallSet = new Map<string, ToolCallMeta>();
-      const executedTools: GenerateTextResult['toolCalls'] = [];
+      const executedTools: GenerateTextResult["toolCalls"] = [];
       let finalText: string | undefined;
 
       try {
         const stream = await this.openai.responses.stream({
           input: this.conversationHistory,
-          model: this.env.MODEL_NAME || this.model,
+          model: this.model,
           tools: this.llmTool,
           stream: true,
           text: {
             format: zodTextFormat(
-              input.outputSchema ?? z.object({ text: z.string() }),
-              'structured-stream',
+              this.outputSchema ?? z.object({ text: z.string() }),
+              "structured-stream",
             ),
           },
         });
 
         for await (const event of stream) {
           switch (event.type) {
-            case 'response.output_text.delta':
-              process.stdout.write(event.delta);
+            case "response.output_text.delta":
+              process.stdout.write(pc.cyan(event.delta));
               break;
 
-            case 'response.output_text.done':
+            case "response.output_text.done":
+              console.log("\n");
               finalText = event.text;
               break;
 
-            case 'response.output_item.added':
-              if (event.item.type === 'function_call' && event.item.id) {
+            case "response.output_item.added":
+              if (event.item.type === "function_call" && event.item.id) {
                 toolCallSet.set(event.item.id, {
                   name: event.item.name,
                   call_id: event.item.call_id,
@@ -116,7 +133,7 @@ export class OpenaiService {
               }
               break;
 
-            case 'response.function_call_arguments.done': {
+            case "response.function_call_arguments.done": {
               const tool = toolCallSet.get(event.item_id);
               if (!tool) {
                 this.logger.warn(
@@ -126,7 +143,7 @@ export class OpenaiService {
               }
 
               this.conversationHistory.push({
-                type: 'function_call',
+                type: "function_call",
                 id: event.item_id,
                 call_id: tool.call_id,
                 name: tool.name,
@@ -139,7 +156,7 @@ export class OpenaiService {
               );
 
               this.conversationHistory.push({
-                type: 'function_call_output',
+                type: "function_call_output",
                 call_id: tool.call_id,
                 output,
               });
@@ -152,17 +169,17 @@ export class OpenaiService {
               break;
             }
 
-            case 'response.incomplete': {
+            case "response.incomplete": {
               const message =
                 event.response.error?.message ??
-                'Model response incomplete for unknown reason.';
+                "Model response incomplete for unknown reason.";
               this.logger.error(`Stream incomplete: ${message}`);
               throw new ServiceUnavailableException(message);
             }
 
-            case 'response.failed': {
+            case "response.failed": {
               const message =
-                event.response.error?.message ?? 'Model response failed.';
+                event.response.error?.message ?? "Model response failed.";
               this.logger.error(`Stream failed: ${message}`);
               throw new InternalServerErrorException(message);
             }
@@ -181,7 +198,7 @@ export class OpenaiService {
           (err as Error).stack,
         );
         throw new InternalServerErrorException(
-          'Failed to generate response from model.',
+          "Failed to generate response from model.",
           { cause: err },
         );
       }
@@ -189,16 +206,16 @@ export class OpenaiService {
       // No tools invoked this turn → we have the final answer.
       if (toolCallSet.size === 0) {
         if (!finalText) {
-          this.logger.warn('Stream completed with no text and no tool calls.');
-          throw new InternalServerErrorException('Model produced no output.');
+          this.logger.warn("Stream completed with no text and no tool calls.");
+          throw new InternalServerErrorException("Model produced no output.");
         }
 
         this.conversationHistory.push({
-          type: 'message',
-          role: 'assistant',
+          type: "message",
+          role: "assistant",
           id: `msg_${Date.now()}`,
-          status: 'completed',
-          content: [{ type: 'output_text', text: finalText, annotations: [] }],
+          status: "completed",
+          content: [{ type: "output_text", text: finalText, annotations: [] }],
         });
 
         return { text: finalText, toolCalls: executedTools };
@@ -225,11 +242,11 @@ export class OpenaiService {
     try {
       const messages: OpenAIInput = [
         {
-          role: 'system',
+          role: "system",
           content: systemPrompt,
         },
         {
-          role: 'user',
+          role: "user",
           content: input,
         },
       ];
@@ -238,7 +255,7 @@ export class OpenaiService {
         input: messages,
         model: model,
         text: {
-          format: zodTextFormat(outputSchema, 'generate-session'),
+          format: zodTextFormat(outputSchema, "generate-session"),
         },
       });
 
@@ -254,8 +271,8 @@ export class OpenaiService {
     args: string,
   ): Promise<string> {
     try {
-      const result = await executor('core', `tool-${toolName}`, args);
-      return typeof result === 'string' ? result : JSON.stringify(result);
+      const result = await executor("core", `tool-${toolName}`, args);
+      return typeof result === "string" ? result : JSON.stringify(result);
     } catch (err) {
       this.logger.error(
         `Tool "${toolName}" failed: ${(err as Error).message}`,
