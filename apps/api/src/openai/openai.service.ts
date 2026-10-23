@@ -8,6 +8,10 @@ import {
 import OpenAI from 'openai';
 import { executor } from '../libs/tool';
 import { registerEnv, type SessionConfig } from '../config';
+import { OpenAIInput } from '../libs/ai';
+import { zodTextFormat } from 'openai/helpers/zod';
+import { ZodJSONSchema, ZodObject } from 'zod';
+import { z } from 'zod';
 
 /** Shape returned to the caller on success. */
 export interface GenerateTextResult {
@@ -45,18 +49,20 @@ export class OpenaiService {
     });
   }
 
-  async streamText(
-    agentId: string,
-    name: string,
-    sysPrompt: string,
-    tools: OpenAI.Responses.Tool[],
-    model: string,
-  ): Promise<GenerateTextResult> {
-    this.agentID = agentId;
-    this.name = name;
-    this.systemPrompt = sysPrompt;
-    this.llmTool = tools;
-    this.model = model;
+  async streamText(input: {
+    sysPrompt: string;
+    model: string;
+    query: string;
+    outputSchema?: ZodObject;
+    agentId?: string;
+    name?: string;
+    tools?: OpenAI.Responses.Tool[];
+  }): Promise<GenerateTextResult> {
+    this.agentID = input.agentId ?? `agent-${Date.now()}`;
+    this.name = input.name ?? `agent-${Date.now()}`;
+    this.systemPrompt = input.sysPrompt;
+    this.llmTool = input.tools ?? [];
+    this.model = input.model;
 
     const MAX_TURNS = 10;
 
@@ -66,6 +72,10 @@ export class OpenaiService {
         role: 'system',
         content: this.env.SYSTEM_PROMPT || this.systemPrompt,
       },
+      {
+        role: 'user',
+        content: input.query,
+      },
     ];
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
@@ -74,11 +84,17 @@ export class OpenaiService {
       let finalText: string | undefined;
 
       try {
-        const stream = await this.openai.responses.create({
+        const stream = await this.openai.responses.stream({
           input: this.conversationHistory,
           model: this.env.MODEL_NAME || this.model,
           tools: this.llmTool,
           stream: true,
+          text: {
+            format: zodTextFormat(
+              input.outputSchema ?? z.object({ text: z.string() }),
+              'structured-stream',
+            ),
+          },
         });
 
         for await (const event of stream) {
@@ -198,6 +214,38 @@ export class OpenaiService {
     throw new InternalServerErrorException(
       `Agent exceeded maximum of ${MAX_TURNS} turns without converging.`,
     );
+  }
+
+  async generateText(
+    input: string,
+    systemPrompt: string,
+    outputSchema: ZodObject,
+    model: string,
+  ) {
+    try {
+      const messages: OpenAIInput = [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content: input,
+        },
+      ];
+
+      const responses = await this.openai.responses.parse({
+        input: messages,
+        model: model,
+        text: {
+          format: zodTextFormat(outputSchema, 'generate-session'),
+        },
+      });
+
+      return responses.output_parsed;
+    } catch (err) {
+      throw new Error(err as string);
+    }
   }
 
   /** Executes a tool and normalizes failures into a JSON error payload. */
