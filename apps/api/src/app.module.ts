@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { createObserveModule } from "@nestjs/observe";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service.js";
-import { CreateIdeaModule } from "./session/session.module";
+import { SessionModule } from "./session/session.module";
 import { createLogger } from "@repo/logger";
 import { LoggerModule } from "nestjs-pino";
 import { getEnvConfig, registerEnv } from "./config.js";
@@ -29,7 +29,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       envFilePath: ".env.local",
       ignoreEnvVars: true,
     }),
-    CreateIdeaModule.forRootAsync({
+    SessionModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) =>
         getEnvConfig(configService, "CreateIdea.ENV"),

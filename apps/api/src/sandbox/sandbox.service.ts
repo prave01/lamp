@@ -34,14 +34,6 @@ export class SandBoxService {
       agentId: this.id,
       tools: args.tools,
     });
-
-    this.openaiService = new OpenaiService(
-      this.id,
-      this.name,
-      this.systemPrompt,
-      LLM_TOOL(this.tools),
-      this.model.modelName,
-    );
   }
 
   async initSandBox() {

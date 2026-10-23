@@ -19,7 +19,7 @@ interface CreateIdeaModuleAsyncOptions<T> {
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configSerivce: ConfigService) => {
-        const envs = getEnvConfig(configSerivce, "CreateIdea.ENV");
+        const envs = getEnvConfig(configSerivce, "SessionConfig.ENV");
         return {
           apiKey: envs.OPENROUTER_KEY,
           modelName: envs.MODEL_NAME,
@@ -30,12 +30,12 @@ interface CreateIdeaModuleAsyncOptions<T> {
     }),
   ],
 })
-export class CreateIdeaModule {
+export class SessionModule {
   static forRootAsync(
     options: CreateIdeaModuleAsyncOptions<SessionConfig>,
   ): DynamicModule {
     return {
-      module: CreateIdeaModule,
+      module: SessionModule,
       imports: options.imports,
       providers: [
         {

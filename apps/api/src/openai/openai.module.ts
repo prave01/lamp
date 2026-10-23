@@ -13,10 +13,12 @@ export const OPENAI_CONFIG = "OPENAI_CONFIG";
 interface OpenaiModuleAsyncOptions {
   inject?: any[];
   imports?: any[];
-  useFactory: (...args: any[]) => OpenaiConfig | Promise<OpenaiConfig>;
+  useFactory: (...args: any[]) => OpenaiConfig;
 }
 
-@Module({})
+@Module({
+  providers: [OpenaiService],
+})
 export class OpenaiModule {
   static forRootAsync(options: OpenaiModuleAsyncOptions): DynamicModule {
     return {
@@ -28,7 +30,9 @@ export class OpenaiModule {
           inject: options.inject ?? [],
           useFactory: options.useFactory,
         },
+        OpenaiService,
       ],
+      exports: [OpenaiService],
     };
   }
 }
