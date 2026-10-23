@@ -50,5 +50,5 @@ export function getEnvConfig<K extends keyof EnvConfigTypes>(
   configService: ConfigService,
   context: K,
 ): EnvConfigTypes[K] {
-  return configService.get(coSANDBOX_NAMEntext)!;
+  return configService.get(context)!;
 }
