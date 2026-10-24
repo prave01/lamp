@@ -17,15 +17,7 @@ export class SessionService {
   constructor(
     @Inject('session_config')
     private env: SessionConfig,
-  ) {
-    this.openaiService.createOpenAIInstance(
-      'SessionService',
-      this.env.SESSION_OPENROUTER_KEY,
-      this.env.SESSION_OPENROUTER_BASE_URL,
-      this.env.SESSION_SYSTEM_PROMPT,
-      this.env.SESSION_MODEL_NAME,
-    );
-  }
+  ) { }
 
   async createSession(query: string) {
     try {
@@ -77,13 +69,7 @@ export class SessionService {
 
     const res = await db.query.sessionTable.findFirst();
 
-    const response = await this.openaiService.streamText(
-      query,
-      z.object({
-        text: z.string().describe('response'),
-      }),
-      new DbContextManager(this.sessionId),
-    );
+    const response = await this.openaiService.streamText(query);
 
     return response;
   }

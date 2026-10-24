@@ -3,6 +3,7 @@ import { SessionController } from "./session.controller";
 import { SessionService } from "./session.service";
 import { type SessionConfig } from "../config";
 import { OpenaiModule } from "../openai/openai.module";
+import { SessionGateway } from "./session.gateway";
 
 interface CreateIdeaModuleAsyncOptions<T> {
   inject: any[];
@@ -12,7 +13,7 @@ interface CreateIdeaModuleAsyncOptions<T> {
 
 @Module({
   controllers: [SessionController],
-  providers: [SessionService],
+  providers: [SessionService, SessionGateway],
   imports: [OpenaiModule],
 })
 export class SessionModule {

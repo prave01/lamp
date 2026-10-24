@@ -5,7 +5,17 @@ import { messageTable } from "../../database/schema";
 import { eq } from "drizzle-orm";
 
 export class DbContextManager implements ContextManager {
-  constructor(private readonly sessionId: string) { }
+  constructor(private readonly sessionId: string) {
+    const session = db.query.sessionTable.findFirst({
+      where: {
+        id: sessionId,
+      },
+    });
+
+    if (!session) {
+      throw new Error("No session available");
+    }
+  }
 
   async load(): Promise<ResponseInputItem[]> {
     const rows = await db.query.messageTable.findMany({

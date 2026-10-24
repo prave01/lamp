@@ -12,6 +12,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { ZodObject, z } from "zod";
 import pc from "picocolors";
 import { ContextManager } from "./contextManager";
+import { db } from "../database";
 
 /** Shape returned to the caller on success. */
 export interface GenerateTextResult {
@@ -25,6 +26,12 @@ interface ToolCallMeta {
   name: string;
   call_id: string;
 }
+
+export type SessionEvent =
+  | { type: "text-delta"; delta: string }
+  | { type: "tool-start"; toolName: string }
+  | { type: "tool-complete"; toolName: string }
+  | { type: "status"; status: string };
 
 @Injectable({
   scope: Scope.TRANSIENT,
@@ -57,6 +64,7 @@ export class OpenaiService {
     baseUrl: string,
     systemPrompt: string,
     modelName: string,
+    context: ContextManager,
   ) {
     if (apiKey && baseUrl && systemPrompt && serviceName) {
       this.apiKey = apiKey;
@@ -65,9 +73,16 @@ export class OpenaiService {
       this.model = modelName;
       this.serviceName = serviceName;
 
+      this.context = context;
+
       this.openai = new OpenAI({
         baseURL: this.baseUrl,
         apiKey: this.apiKey,
+      });
+
+      await this.context.append({
+        role: "system",
+        content: this.systemPrompt,
       });
 
       this.isInstanceCreated = true;
@@ -82,19 +97,11 @@ export class OpenaiService {
 
   async streamText(
     query: string,
-    outputSchema: ZodObject,
-    context: ContextManager,
+    onEvent?: (event: SessionEvent) => void,
   ): Promise<GenerateTextResult> {
     if (!this.isInstanceCreated) {
       throw new Error("Please create an OpenAI instance");
     }
-
-    this.context = context;
-
-    await this.context.append({
-      role: "system",
-      content: this.systemPrompt,
-    });
 
     await this.context.append({
       role: "user",
@@ -119,23 +126,23 @@ export class OpenaiService {
           model: this.model,
           tools: this.llmTool,
           stream: true,
-          text: {
-            format: zodTextFormat(
-              outputSchema ?? z.object({ text: z.string() }),
-              "structured-stream",
-            ),
-          },
         });
 
         for await (const event of stream) {
           switch (event.type) {
             case "response.output_text.delta":
               process.stdout.write(pc.cyan(event.delta));
+              if (onEvent) {
+                onEvent({
+                  type: "text-delta",
+                  delta: event.delta,
+                });
+              }
               break;
 
             case "response.output_text.done":
               console.log("\n");
-              finalText = await JSON.parse(event.text)?.text;
+              finalText = event.text;
               break;
 
             case "response.output_item.added":

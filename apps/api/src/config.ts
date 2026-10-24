@@ -5,9 +5,7 @@ export const SessionConfigSchema = z.object({
   SESSION_MODEL_NAME: z.string().default("~deepseek/deepseek-pro-latest"),
   SESSION_SYSTEM_PROMPT: z
     .string()
-    .default(
-      "Generate a idea, give the technical requirements for another builder agent to build an agent",
-    ),
+    .default("Be a casual ai assistant and be a dawwg"),
   SESSION_OPENROUTER_KEY: z.string(),
   SESSION_OPENROUTER_BASE_URL: z
     .string()
