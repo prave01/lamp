@@ -1,20 +1,20 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { OpenaiService } from '../openai/openai.service';
 import { db } from '../database';
-import { sessionTable } from '../database/schema';
-import {
-  registerSessionEnv,
-  SessionOutputSchemaType,
-  type SessionConfig,
-} from '../config';
+import { messageTable, sessionTable } from '../database/schema';
+import z from 'zod';
+import { type SessionConfig } from '../config';
+import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
+  private openaiService = new OpenaiService();
+
+  private sessionId: string;
 
   constructor(
-    private openaiService: OpenaiService,
-
     @Inject('session_config')
     private env: SessionConfig,
   ) {
@@ -24,21 +24,26 @@ export class SessionService {
       this.env.SESSION_OPENROUTER_BASE_URL,
       this.env.SESSION_SYSTEM_PROMPT,
       this.env.SESSION_MODEL_NAME,
-      this.env.SESSION_OUTPUT_SCHEMA,
     );
   }
 
   async createSession(query: string) {
     try {
-      const response = await this.openaiService.streamText(query);
-
-      const parsed_data: SessionOutputSchemaType = JSON.parse(response.text);
+      const response = await this.openaiService.generateText(
+        query,
+        'Generate session metadata',
+        z.object({
+          title: z.string().describe('Title for the session'),
+          description: z.string().describe('Description about the session'),
+        }),
+        'gpt-4o-mini',
+      );
 
       const db_response = await db
         .insert(sessionTable)
         .values({
-          title: parsed_data.title,
-          description: parsed_data.description,
+          title: response?.title as string,
+          description: response?.description as string,
         })
         .returning();
 
@@ -46,12 +51,40 @@ export class SessionService {
         inserted: db_response,
       });
 
-      return db_response;
+      return {
+        sessionId: db_response[0].id,
+        title: db_response[0].title,
+        description: db_response[0].description,
+      };
     } catch (err) {
       if (err instanceof Error) {
         throw new Error(err.message);
       }
       throw new Error('Error while creating session');
     }
+  }
+
+  async runSession(query: string, sessionId: string) {
+    const session = await db.query.sessionTable.findFirst({
+      where: {
+        id: sessionId,
+      },
+    });
+
+    if (!session) {
+      throw new Error('Please create a session first');
+    }
+
+    const res = await db.query.sessionTable.findFirst();
+
+    const response = await this.openaiService.streamText(
+      query,
+      z.object({
+        text: z.string().describe('response'),
+      }),
+      new DbContextManager(this.sessionId),
+    );
+
+    return response;
   }
 }

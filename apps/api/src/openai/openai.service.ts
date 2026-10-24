@@ -3,6 +3,7 @@ import {
   Logger,
   InternalServerErrorException,
   ServiceUnavailableException,
+  Scope,
 } from "@nestjs/common";
 import OpenAI from "openai";
 import { executor } from "../libs/tool";
@@ -10,6 +11,7 @@ import { OpenAIInput } from "../libs/ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { ZodObject, z } from "zod";
 import pc from "picocolors";
+import { ContextManager } from "./contextManager";
 
 /** Shape returned to the caller on success. */
 export interface GenerateTextResult {
@@ -24,7 +26,9 @@ interface ToolCallMeta {
   call_id: string;
 }
 
-@Injectable()
+@Injectable({
+  scope: Scope.TRANSIENT,
+})
 export class OpenaiService {
   private readonly logger = new Logger(OpenaiService.name);
   private conversationHistory: OpenAI.Responses.ResponseInputItem[] = [];
@@ -42,23 +46,24 @@ export class OpenaiService {
   private baseUrl: string;
   private systemPrompt: string;
   private outputSchema: ZodObject;
+  private serviceName: string;
+  private context: ContextManager;
 
   constructor() { }
 
-  createOpenAIInstance(
+  async createOpenAIInstance(
     serviceName: string,
     apiKey: string,
     baseUrl: string,
     systemPrompt: string,
     modelName: string,
-    outputSchema: ZodObject,
   ) {
-    if (apiKey && baseUrl && systemPrompt && serviceName && outputSchema) {
+    if (apiKey && baseUrl && systemPrompt && serviceName) {
       this.apiKey = apiKey;
       this.baseUrl = baseUrl;
       this.systemPrompt = systemPrompt;
-      this.outputSchema = outputSchema;
       this.model = modelName;
+      this.serviceName = serviceName;
 
       this.openai = new OpenAI({
         baseURL: this.baseUrl,
@@ -75,24 +80,33 @@ export class OpenaiService {
     }
   }
 
-  async streamText(query: string): Promise<GenerateTextResult> {
+  async streamText(
+    query: string,
+    outputSchema: ZodObject,
+    context: ContextManager,
+  ): Promise<GenerateTextResult> {
     if (!this.isInstanceCreated) {
       throw new Error("Please create an OpenAI instance");
     }
 
+    this.context = context;
+
+    await this.context.append({
+      role: "system",
+      content: this.systemPrompt,
+    });
+
+    await this.context.append({
+      role: "user",
+      content: query,
+    });
+
     const MAX_TURNS = 10;
 
-    this.conversationHistory = [
-      ...this.conversationHistory,
-      {
-        role: "system",
-        content: this.systemPrompt,
-      },
-      {
-        role: "user",
-        content: query,
-      },
-    ];
+    this.logger.log(
+      `conversationHistory of ${this.serviceName}:\n` +
+      JSON.stringify(await this.context.load(), null, 2),
+    );
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const toolCallSet = new Map<string, ToolCallMeta>();
@@ -101,13 +115,13 @@ export class OpenaiService {
 
       try {
         const stream = await this.openai.responses.stream({
-          input: this.conversationHistory,
+          input: await this.context.load(),
           model: this.model,
           tools: this.llmTool,
           stream: true,
           text: {
             format: zodTextFormat(
-              this.outputSchema ?? z.object({ text: z.string() }),
+              outputSchema ?? z.object({ text: z.string() }),
               "structured-stream",
             ),
           },
@@ -121,7 +135,7 @@ export class OpenaiService {
 
             case "response.output_text.done":
               console.log("\n");
-              finalText = event.text;
+              finalText = await JSON.parse(event.text)?.text;
               break;
 
             case "response.output_item.added":
@@ -137,12 +151,12 @@ export class OpenaiService {
               const tool = toolCallSet.get(event.item_id);
               if (!tool) {
                 this.logger.warn(
-                  `No tool metadata for item_id=${event.item_id}; skipping.`,
+                  `No tool metadata for item_id = ${event.item_id}; skipping.`,
                 );
                 break;
               }
 
-              this.conversationHistory.push({
+              await this.context.append({
                 type: "function_call",
                 id: event.item_id,
                 call_id: tool.call_id,
@@ -155,7 +169,7 @@ export class OpenaiService {
                 event.arguments,
               );
 
-              this.conversationHistory.push({
+              await this.context.append({
                 type: "function_call_output",
                 call_id: tool.call_id,
                 output,
@@ -173,14 +187,14 @@ export class OpenaiService {
               const message =
                 event.response.error?.message ??
                 "Model response incomplete for unknown reason.";
-              this.logger.error(`Stream incomplete: ${message}`);
+              this.logger.error(`Stream incomplete: ${message} `);
               throw new ServiceUnavailableException(message);
             }
 
             case "response.failed": {
               const message =
                 event.response.error?.message ?? "Model response failed.";
-              this.logger.error(`Stream failed: ${message}`);
+              this.logger.error(`Stream failed: ${message} `);
               throw new InternalServerErrorException(message);
             }
 
@@ -194,7 +208,7 @@ export class OpenaiService {
         if (err instanceof InternalServerErrorException) throw err;
 
         this.logger.error(
-          `Error while streaming from OpenAI: ${(err as Error).message}`,
+          `Error while streaming from OpenAI: ${(err as Error).message} `,
           (err as Error).stack,
         );
         throw new InternalServerErrorException(
@@ -210,13 +224,17 @@ export class OpenaiService {
           throw new InternalServerErrorException("Model produced no output.");
         }
 
-        this.conversationHistory.push({
+        this.logger.log(`Final text ${finalText}`);
+
+        await this.context.append({
           type: "message",
           role: "assistant",
-          id: `msg_${Date.now()}`,
+          id: `msg_${Date.now()} `,
           status: "completed",
           content: [{ type: "output_text", text: finalText, annotations: [] }],
         });
+
+        this.logger.log(await this.context.load());
 
         return { text: finalText, toolCalls: executedTools };
       }
@@ -271,11 +289,11 @@ export class OpenaiService {
     args: string,
   ): Promise<string> {
     try {
-      const result = await executor("core", `tool-${toolName}`, args);
+      const result = await executor("core", `tool - ${toolName} `, args);
       return typeof result === "string" ? result : JSON.stringify(result);
     } catch (err) {
       this.logger.error(
-        `Tool "${toolName}" failed: ${(err as Error).message}`,
+        `Tool "${toolName}" failed: ${(err as Error).message} `,
         (err as Error).stack,
       );
       return JSON.stringify({ error: (err as Error).message });

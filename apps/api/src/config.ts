@@ -1,13 +1,5 @@
 import { z, ZodObject } from "zod";
 import { ConfigService, registerAs } from "@nestjs/config";
-import { ConfigType } from "@nestjs/config";
-
-export const SessionOutputSchema = z.object({
-  title: z.string().describe("Title for the session"),
-  description: z.string().describe("Description about the session"),
-});
-
-export type SessionOutputSchemaType = z.infer<typeof SessionOutputSchema>;
 
 export const SessionConfigSchema = z.object({
   SESSION_MODEL_NAME: z.string().default("~deepseek/deepseek-pro-latest"),
@@ -16,9 +8,6 @@ export const SessionConfigSchema = z.object({
     .default(
       "Generate a idea, give the technical requirements for another builder agent to build an agent",
     ),
-  SESSION_OUTPUT_SCHEMA: z
-    .custom<ZodObject<any>>()
-    .default(SessionOutputSchema),
   SESSION_OPENROUTER_KEY: z.string(),
   SESSION_OPENROUTER_BASE_URL: z
     .string()

@@ -7,7 +7,15 @@ import {
   text,
   json,
   uuid,
+  pgEnum,
 } from "drizzle-orm/pg-core";
+
+export const messageRoleEnum = pgEnum("message_role", [
+  "user",
+  "assistant",
+  "system",
+  "developer",
+]);
 
 export const sessionTable = pgTable("sessions", {
   id: uuid().primaryKey().defaultRandom(),
@@ -18,6 +26,14 @@ export const sessionTable = pgTable("sessions", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+});
+
+export const messageTable = pgTable("messages", {
+  id: uuid().primaryKey().defaultRandom(),
+  sessionId: uuid().references(() => sessionTable.id),
+  role: messageRoleEnum("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const sandboxTable = pgTable("sandboxes", {
@@ -59,48 +75,35 @@ export const workflowVersionTable = pgTable("workflow_versions", {
 });
 
 // query relations
-// one session can have one sandbox ==> one-to-one relationship
-export const session_sandbox_relation = defineRelations(
-  { sessionTable, sandboxTable },
+export const relations = defineRelations(
+  {
+    sessionTable,
+    sandboxTable,
+    workflowTable,
+    workflowVersionTable,
+    messageTable,
+  },
   (r) => ({
     sandboxTable: {
       session: r.one.sessionTable({
         from: r.sandboxTable.sessionId,
         to: r.sessionTable.id,
       }),
-    },
-  }),
-);
-
-// one sandbox can have many workflows ==> one-to-many relationship
-export const sandbox_workflow_relation = defineRelations(
-  {
-    sandboxTable,
-    workflowTable,
-  },
-  (r) => ({
-    sandboxTable: {
-      // one sandbox can have many workflows
       workflows: r.many.workflowTable({
-        from: r.sandboxTable.id, // PK on sandboxes
-        to: r.workflowTable.sandboxId, // FK column on workflows
+        from: r.sandboxTable.id,
+        to: r.workflowTable.sandboxId,
       }),
     },
-  }),
-);
-
-// one workflow can have many different versions of the agent ==> one-to-many relationship
-export const workflow_workflow_version_relation = defineRelations(
-  {
-    workflowTable,
-    workflowVersionTable,
-  },
-  (r) => ({
     workflowTable: {
-      // one workflow can have many versions
       versions: r.many.workflowVersionTable({
         from: r.workflowTable.id,
         to: r.workflowVersionTable.workflowId,
+      }),
+    },
+    sessionTable: {
+      messages: r.many.messageTable({
+        from: r.sessionTable.id,
+        to: r.messageTable.sessionId,
       }),
     },
   }),
