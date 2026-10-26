@@ -1,11 +1,9 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { OpenaiService } from '../openai/openai.service';
 import { db } from '../database';
-import { messageTable, sessionTable } from '../database/schema';
+import { sessionTable } from '../database/schema';
 import z from 'zod';
 import { type SessionConfig } from '../config';
-import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
-import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class SessionService {
@@ -17,7 +15,15 @@ export class SessionService {
   constructor(
     @Inject('session_config')
     private env: SessionConfig,
-  ) { }
+  ) {
+    this.openaiService.createOpenAIInstance(
+      'SessionService',
+      this.env.SESSION_OPENROUTER_KEY,
+      this.env.SESSION_OPENROUTER_BASE_URL,
+      this.env.SESSION_SYSTEM_PROMPT,
+      this.env.SESSION_MODEL_NAME,
+    );
+  }
 
   async createSession(query: string) {
     try {
@@ -50,6 +56,7 @@ export class SessionService {
       };
     } catch (err) {
       if (err instanceof Error) {
+        this.logger.error(err);
         throw new Error(err.message);
       }
       throw new Error('Error while creating session');

@@ -5,10 +5,11 @@ import {
   WebSocketGateway,
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
-import { OpenaiService, SessionEvent } from '../openai/openai.service';
+import { OpenaiService } from '../openai/openai.service';
 import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
 import { type SessionConfig } from '../config';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
+import { getSession } from '../database';
 
 type RunSessionDto = {
   sessionId: string;
@@ -21,6 +22,8 @@ type RunSessionDto = {
   },
 })
 export class SessionGateway {
+  private readonly logger = new Logger(SessionGateway.name);
+
   constructor(
     private readonly openaiService: OpenaiService,
 
@@ -34,7 +37,9 @@ export class SessionGateway {
     @MessageBody() data: RunSessionDto,
   ) {
     try {
-      client.emit('session:started', {
+      const session = await getSession(data.sessionId);
+
+      await client.emit('session:started', {
         sessionId: data.sessionId,
       });
 
@@ -42,9 +47,7 @@ export class SessionGateway {
         client.emit('session:event', event);
       });
     } catch (err) {
-      console.error('Gateway error:', err);
-      console.error('Error message:', err instanceof Error ? err.message : err);
-      console.error('Stack:', err instanceof Error ? err.stack : undefined);
+      this.logger.error(err);
 
       client.emit('session:error', {
         message: err instanceof Error ? err.message : 'Unknown error',
@@ -60,8 +63,8 @@ export class SessionGateway {
       sessionId: string;
     },
   ) {
-    this.openaiService.createOpenAIInstance(
-      'SessionGateway ',
+    await this.openaiService.createOpenAIInstance(
+      'SessionGateway',
       this.env.SESSION_OPENROUTER_KEY,
       this.env.SESSION_OPENROUTER_BASE_URL,
       this.env.SESSION_SYSTEM_PROMPT,

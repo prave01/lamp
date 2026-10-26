@@ -33,9 +33,7 @@ export type SessionEvent =
   | { type: "tool-complete"; toolName: string }
   | { type: "status"; status: string };
 
-@Injectable({
-  scope: Scope.TRANSIENT,
-})
+@Injectable()
 export class OpenaiService {
   private readonly logger = new Logger(OpenaiService.name);
   private conversationHistory: OpenAI.Responses.ResponseInputItem[] = [];
@@ -64,7 +62,7 @@ export class OpenaiService {
     baseUrl: string,
     systemPrompt: string,
     modelName: string,
-    context: ContextManager,
+    context?: ContextManager,
   ) {
     if (apiKey && baseUrl && systemPrompt && serviceName) {
       this.apiKey = apiKey;
@@ -73,16 +71,18 @@ export class OpenaiService {
       this.model = modelName;
       this.serviceName = serviceName;
 
-      this.context = context;
+      if (context) {
+        this.context = context;
+
+        await this.context.append({
+          role: "system",
+          content: this.systemPrompt,
+        });
+      }
 
       this.openai = new OpenAI({
         baseURL: this.baseUrl,
         apiKey: this.apiKey,
-      });
-
-      await this.context.append({
-        role: "system",
-        content: this.systemPrompt,
       });
 
       this.isInstanceCreated = true;
@@ -110,10 +110,10 @@ export class OpenaiService {
 
     const MAX_TURNS = 10;
 
-    this.logger.log(
-      `conversationHistory of ${this.serviceName}:\n` +
-      JSON.stringify(await this.context.load(), null, 2),
-    );
+    // this.logger.log(
+    //   `conversationHistory of ${this.serviceName}:\n` +
+    //   JSON.stringify(await this.context.load(), null, 2),
+    // );
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const toolCallSet = new Map<string, ToolCallMeta>();
@@ -241,7 +241,7 @@ export class OpenaiService {
           content: [{ type: "output_text", text: finalText, annotations: [] }],
         });
 
-        this.logger.log(await this.context.load());
+        // this.logger.log(await this.context.load());
 
         return { text: finalText, toolCalls: executedTools };
       }
@@ -286,6 +286,11 @@ export class OpenaiService {
 
       return responses.output_parsed;
     } catch (err) {
+      if (err instanceof Error) {
+        this.logger.error(err);
+        throw new Error(err.message);
+      }
+
       throw new Error(err as string);
     }
   }
