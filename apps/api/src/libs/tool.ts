@@ -32,8 +32,6 @@ export function LLM_TOOL(
         parameters: jsonSchema,
       };
 
-      console.log(openaiTool);
-
       return openaiTool;
     });
   }

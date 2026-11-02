@@ -7,7 +7,7 @@ loadEnvFile("./.env.local");
 export const db = drizzle(process.env.DATABASE_URL!, { relations });
 
 // get session  by id
-export async function getSession(sessionId: string): Promise<any> {
+export async function getSession(sessionId: string) {
   try {
     const response = await db.query.sessionTable.findFirst({
       where: {

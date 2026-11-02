@@ -3,16 +3,15 @@ import {
   Logger,
   InternalServerErrorException,
   ServiceUnavailableException,
-  Scope,
 } from "@nestjs/common";
 import OpenAI from "openai";
-import { executor } from "../libs/tool";
+import { executor, LLM_TOOL, ToolsResolver } from "../libs/tool";
 import { OpenAIInput } from "../libs/ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { ZodObject, z } from "zod";
 import pc from "picocolors";
 import { ContextManager } from "./contextManager";
-import { db } from "../database";
+import { ResponseStreamEvent } from "openai/resources/responses/responses.js";
 
 /** Shape returned to the caller on success. */
 export interface GenerateTextResult {
@@ -72,13 +71,22 @@ export class OpenaiService {
       this.serviceName = serviceName;
 
       if (context) {
+        // sets the context provider
         this.context = context;
 
         await this.context.append({
+          type: "message",
           role: "system",
           content: this.systemPrompt,
         });
       }
+
+      const tool = ToolsResolver({
+        agentId: "core",
+        tools: ["tool-websearch"],
+      });
+
+      this.llmTool = LLM_TOOL(tool);
 
       this.openai = new OpenAI({
         baseURL: this.baseUrl,
@@ -91,53 +99,49 @@ export class OpenaiService {
         `OpenAI instance created for ${pc.bgBlue(pc.black(serviceName))}`,
       );
 
-      return;
+      return "Session Created";
     }
   }
 
   async streamText(
     query: string,
-    onEvent?: (event: SessionEvent) => void,
+    onEvent?: (event: ResponseStreamEvent) => void,
   ): Promise<GenerateTextResult> {
     if (!this.isInstanceCreated) {
       throw new Error("Please create an OpenAI instance");
     }
 
     await this.context.append({
+      type: "message",
       role: "user",
       content: query,
     });
 
     const MAX_TURNS = 10;
 
-    // this.logger.log(
-    //   `conversationHistory of ${this.serviceName}:\n` +
-    //   JSON.stringify(await this.context.load(), null, 2),
-    // );
-
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const toolCallSet = new Map<string, ToolCallMeta>();
       const executedTools: GenerateTextResult["toolCalls"] = [];
       let finalText: string | undefined;
 
+      const input = await this.context.load();
+
       try {
-        const stream = await this.openai.responses.stream({
-          input: await this.context.load(),
+        const stream = this.openai.responses.stream({
+          input,
           model: this.model,
           tools: this.llmTool,
           stream: true,
         });
 
         for await (const event of stream) {
+          if (onEvent) {
+            onEvent(event);
+          }
+
           switch (event.type) {
             case "response.output_text.delta":
               process.stdout.write(pc.cyan(event.delta));
-              if (onEvent) {
-                onEvent({
-                  type: "text-delta",
-                  delta: event.delta,
-                });
-              }
               break;
 
             case "response.output_text.done":
@@ -156,6 +160,7 @@ export class OpenaiService {
 
             case "response.function_call_arguments.done": {
               const tool = toolCallSet.get(event.item_id);
+
               if (!tool) {
                 this.logger.warn(
                   `No tool metadata for item_id = ${event.item_id}; skipping.`,
@@ -165,10 +170,9 @@ export class OpenaiService {
 
               await this.context.append({
                 type: "function_call",
-                id: event.item_id,
-                call_id: tool.call_id,
                 name: tool.name,
                 arguments: event.arguments,
+                call_id: tool.call_id,
               });
 
               const output = await this.executeToolSafely(
@@ -179,7 +183,8 @@ export class OpenaiService {
               await this.context.append({
                 type: "function_call_output",
                 call_id: tool.call_id,
-                output,
+                name: tool.name,
+                output: output.toString(),
               });
 
               executedTools.push({
@@ -230,8 +235,6 @@ export class OpenaiService {
           this.logger.warn("Stream completed with no text and no tool calls.");
           throw new InternalServerErrorException("Model produced no output.");
         }
-
-        this.logger.log(`Final text ${finalText}`);
 
         await this.context.append({
           type: "message",
@@ -301,7 +304,7 @@ export class OpenaiService {
     args: string,
   ): Promise<string> {
     try {
-      const result = await executor("core", `tool - ${toolName} `, args);
+      const result = await executor("core", `tool-${toolName}`, args);
       return typeof result === "string" ? result : JSON.stringify(result);
     } catch (err) {
       this.logger.error(

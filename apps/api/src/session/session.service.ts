@@ -16,8 +16,8 @@ export class SessionService {
     @Inject('session_config')
     private env: SessionConfig,
   ) {
-    this.openaiService.createOpenAIInstance(
-      'SessionService',
+    const res = this.openaiService.createOpenAIInstance(
+      'SessionService ',
       this.env.SESSION_OPENROUTER_KEY,
       this.env.SESSION_OPENROUTER_BASE_URL,
       this.env.SESSION_SYSTEM_PROMPT,
@@ -81,3 +81,4 @@ export class SessionService {
     return response;
   }
 }
+('');

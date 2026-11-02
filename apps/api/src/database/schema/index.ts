@@ -8,6 +8,7 @@ import {
   json,
   uuid,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const messageRoleEnum = pgEnum("message_role", [
@@ -15,6 +16,13 @@ export const messageRoleEnum = pgEnum("message_role", [
   "assistant",
   "system",
   "developer",
+]);
+
+// New: message type used to distinguish ordinary messages from tool calls
+export const messageTypeEnum = pgEnum("message_type", [
+  "message", // Ordinary message (user/assistant/system/developer)
+  "function_call", // Model-requested tool call
+  "function_call_output", // Tool execution result
 ]);
 
 export const sessionTable = pgTable("sessions", {
@@ -31,8 +39,23 @@ export const sessionTable = pgTable("sessions", {
 export const messageTable = pgTable("messages", {
   id: uuid().primaryKey().defaultRandom(),
   sessionId: uuid().references(() => sessionTable.id),
-  role: messageRoleEnum("role").notNull(),
-  content: text("content").notNull(),
+
+  role: messageRoleEnum("role"),
+
+  type: messageTypeEnum("type").notNull().default("message"),
+
+  // Keep content for ordinary messages; can be left empty for function_call/function_call_output
+  content: text("content"),
+
+  name: text("tool_name").default("null"),
+  call_id: text("call_id").default("null"),
+  arguments: jsonb("arguments").default("null"),
+
+  // New: store structured metadata for tool calls
+  // function_call: { call_id, name, arguments, fc_id? }
+  // function_call_output: { call_id, output }
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

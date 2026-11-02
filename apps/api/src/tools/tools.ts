@@ -27,8 +27,6 @@ export const webSearchTool = CreateTool({
 
     const result = response.web[0];
 
-    console.log("Search result:", result);
-
     if ("markdown" in result) {
       return result?.markdown;
     }
