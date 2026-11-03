@@ -1,6 +1,13 @@
-import { Body, Controller, Logger, Post } from '@nestjs/common';
+import { Body, Controller, HttpStatus, Logger, Post } from '@nestjs/common';
 import { SessionService } from './session.service';
-import { input } from 'zod';
+import {
+  type CreateSession,
+  type RunSessionBody,
+  CreateSessionSchema,
+  RunSessionSchema,
+} from './types';
+import { SessionControllerError } from './session.error';
+import { getSession } from '../database';
 
 @Controller('idea')
 export class SessionController {
@@ -11,47 +18,43 @@ export class SessionController {
   @Post('create-session')
   async createSession(
     @Body()
-    input: {
-      query: string;
-    },
+    input: CreateSession,
   ) {
-    try {
-      const res = await this.sessionService.createSession(input.query);
-      return res;
-    } catch (err) {
-      if (err instanceof Error) {
-        this.logger.error(err);
-        throw new Error(err.message);
-      }
-      this.logger.error('Internal Server Error: 500');
-      throw new Error('Internal Server Error: 500');
+    const { data, success, error } = CreateSessionSchema.safeParse(input);
+
+    if (!success) {
+      throw new SessionControllerError(
+        'INVALID_INPUT',
+        HttpStatus.BAD_REQUEST,
+        error.issues,
+      );
     }
+
+    const res = await this.sessionService.createSession(data.query);
+
+    return {
+      success: true,
+      sessionId: res.sessionId,
+    };
   }
 
   @Post('run-session')
   async runSesssion(
     @Body()
-    input: {
-      query: string;
-      sessionId: string;
-    },
+    input: RunSessionBody,
   ) {
-    try {
-      const response = await this.sessionService.runSession(
-        input.query,
-        input.sessionId,
+    const { data, success, error } = RunSessionSchema.safeParse(input);
+
+    if (!success) {
+      throw new SessionControllerError(
+        'INVALID_INPUT',
+        HttpStatus.BAD_REQUEST,
+        error.issues,
       );
-
-      this.logger.log(response);
-
-      return response;
-    } catch (err) {
-      if (err instanceof Error) {
-        this.logger.error(err);
-        throw new Error(err.message);
-      }
-      this.logger.error('Internal Server Error: 500');
-      throw new Error('Internal Server Error: 500');
     }
+
+    const session = getSession(input.sessionId);
+
+    // half ass lol
   }
 }

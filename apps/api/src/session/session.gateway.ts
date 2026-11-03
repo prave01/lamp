@@ -1,6 +1,7 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
@@ -8,9 +9,17 @@ import { Socket } from 'socket.io';
 import { OpenaiService } from '../openai/openai.service';
 import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
 import { type SessionConfig } from '../config';
-import { Inject, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { getSession } from '../database';
 import { ResponseStreamEvent } from 'openai/resources/responses/responses.js';
+import { WebSocketError } from './session.error';
+import { type CreateSession } from './types';
+import { SessionService } from './session.service';
 
 type RunSessionDto = {
   sessionId: string;
@@ -27,10 +36,56 @@ export class SessionGateway {
 
   constructor(
     private readonly openaiService: OpenaiService,
+    private readonly sessionService: SessionService,
 
     @Inject('session_config')
     private env: SessionConfig,
   ) { }
+
+  @SubscribeMessage('session:create-session')
+  async createSession(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() event: CreateSession,
+  ) {
+    try {
+      console.log(this.openaiService.isInstanceCreated);
+
+      const session = await this.sessionService.createSession(event.query);
+
+      if (!session) {
+        throw new WebSocketError({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Session not created ',
+          recoverable: true,
+        });
+      }
+
+      socket.emit('session:created', {
+        sessionId: session.sessionId,
+        title: session.title,
+        description: session.description,
+      });
+    } catch (err) {
+      if (err instanceof WebSocketError) {
+        this.logger.error({
+          err,
+        });
+
+        throw err;
+      }
+
+      this.logger.error({
+        message: 'Error while creating session',
+        err,
+      });
+
+      throw new WebSocketError({
+        message: 'Error while creating session',
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        recoverable: true,
+      });
+    }
+  }
 
   @SubscribeMessage('session:run')
   async runSession(
@@ -40,6 +95,13 @@ export class SessionGateway {
     try {
       const session = await getSession(data.sessionId);
 
+      if (!session)
+        throw new WebSocketError({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+
+          message: `Session not found for ${data.sessionId}`,
+        });
+
       await this.openaiService.streamText(
         data.query,
         (event: ResponseStreamEvent) => {
@@ -47,11 +109,19 @@ export class SessionGateway {
         },
       );
     } catch (err) {
-      this.logger.error(err);
+      if (err instanceof WebSocketError) {
+        throw new Error(err.message, {
+          cause: err.cause,
+        });
+      }
 
-      socket.emit('session:error', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-      });
+      if (err instanceof Error) {
+        throw new Error(err.message, {
+          cause: err.cause,
+        });
+      }
+
+      throw new InternalServerErrorException('Unknown Error');
     }
   }
 
@@ -77,18 +147,19 @@ export class SessionGateway {
         sessionId: data.sessionId,
       });
     } catch (err) {
-      if (err instanceof Error) {
-        this.handleError(err, client, false);
-        throw new Error(err.message, {
-          cause: err.cause,
-        });
+      if (err instanceof WebSocketError) {
+        throw new Error(err.message);
       }
 
-      throw new InternalServerErrorException('Something went wrong');
+      if (err instanceof Error) {
+        throw new Error(err.message);
+      }
+
+      throw new InternalServerErrorException('Unknown Error');
     }
   }
 
-  @SubscribeMessage('sessionlose')
+  @SubscribeMessage('session:close')
   async closeSession(
     @ConnectedSocket() client: Socket,
     @MessageBody()
@@ -98,14 +169,6 @@ export class SessionGateway {
   ) {
     client.emit('session:closed', {
       sessionId: data.sessionId,
-    });
-  }
-
-  async handleError(error: Error, client: Socket, recoverable: boolean) {
-    client.emit('session:error', {
-      code: 'OPENAI_INSTANCE_FAILED',
-      message: error.message ?? 'Something went wrong',
-      recoverable,
     });
   }
 }

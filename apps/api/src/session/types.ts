@@ -1,8 +1,14 @@
 import z from "zod";
 
 export const CreateSessionSchema = z.object({
-  title: z.string().describe("Generate title for the session"),
-  description: z.string().describe("Generate descrption about the session"),
+  query: z.string(),
 });
 
-export type CreateSessionSchemaType = z.infer<typeof CreateSessionSchema>;
+export type CreateSession = z.infer<typeof CreateSessionSchema>;
+
+export const RunSessionSchema = z.object({
+  query: z.string(),
+  sessionId: z.string(),
+});
+
+export type RunSessionBody = z.infer<typeof RunSessionSchema>;

@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import OpenAI from "openai";
+import OpenAI, { OpenAIError } from "openai";
 import { executor, LLM_TOOL, ToolsResolver } from "../libs/tool";
 import { OpenAIInput } from "../libs/ai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -249,6 +249,10 @@ export class OpenaiService {
     model: string,
   ) {
     try {
+      if (!this.isInstanceCreated) {
+        throw new Error("Please create an openai instance");
+      }
+
       const messages: OpenAIInput = [
         {
           role: "system",
@@ -270,12 +274,7 @@ export class OpenaiService {
 
       return responses.output_parsed;
     } catch (err) {
-      if (err instanceof Error) {
-        this.logger.error(err);
-        throw new Error(err.message);
-      }
-
-      throw new Error(err as string);
+      throw err;
     }
   }
 

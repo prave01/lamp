@@ -6,7 +6,7 @@ loadEnvFile("./.env.local");
 
 export const db = drizzle(process.env.DATABASE_URL!, { relations });
 
-// get session  by id
+// get session by id
 export async function getSession(sessionId: string) {
   try {
     const response = await db.query.sessionTable.findFirst({
@@ -21,12 +21,15 @@ export async function getSession(sessionId: string) {
 
     console.log(`Get session response`, response);
 
-    return response;
+    return response ?? null;
   } catch (err) {
     if (err instanceof Error) {
-      throw new Error(err.message as string);
+      throw new Error(err.message, {
+        cause: err.cause,
+      });
     }
 
+    console.error(err);
     throw new Error("Error while getting session");
   }
 }

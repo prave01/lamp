@@ -5,11 +5,19 @@ const socket = io("http://localhost:3000");
 
 const session = "6c4e9fc8-c507-4229-9b26-46a4a2fe6c8d";
 
+socket.onAny((eventName, ...args) => {
+  console.log(`[IN] ${eventName}`, args);
+});
+
+socket.onAnyOutgoing((eventName, ...args) => {
+  console.log(`[OUT] ${eventName}`, args);
+});
+
 socket.on("connect", async () => {
   console.log("Connected", socket.id);
 
-  socket.emit("session:create_instance", {
-    sessionId: session,
+  await socket.emit("session:create-session", {
+    query: "Create me a whatsapp sales agent that can talk to customers",
   });
 });
 

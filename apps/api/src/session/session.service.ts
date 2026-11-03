@@ -1,28 +1,35 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotImplementedException,
+} from '@nestjs/common';
 import { OpenaiService } from '../openai/openai.service';
 import { db } from '../database';
 import { sessionTable } from '../database/schema';
 import z from 'zod';
+import { OpenAIError } from 'openai';
+import { DrizzleError } from 'drizzle-orm';
 import { type SessionConfig } from '../config';
+import { AiServiceError, PersistenceError } from './session.error';
 
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
   private openaiService = new OpenaiService();
 
-  private sessionId: string;
-
   constructor(
     @Inject('session_config')
     private env: SessionConfig,
   ) {
-    // const res = this.openaiService.createOpenAIInstance(
-    //   'SessionService ',
-    //   this.env.SESSION_OPENROUTER_KEY,
-    //   this.env.SESSION_OPENROUTER_BASE_URL,
-    //   this.env.SESSION_SYSTEM_PROMPT,
-    //   this.env.SESSION_MODEL_NAME,
-    // );
+    this.openaiService.createOpenAIInstance(
+      'SessionService',
+      this.env.SESSION_OPENROUTER_KEY,
+      this.env.SESSION_OPENROUTER_BASE_URL,
+      this.env.SESSION_SYSTEM_PROMPT,
+      this.env.SESSION_MODEL_NAME,
+    );
   }
 
   async createSession(query: string) {
@@ -34,7 +41,7 @@ export class SessionService {
           title: z.string().describe('Title for the session'),
           description: z.string().describe('Description about the session'),
         }),
-        'gpt-4o-mini',
+        this.env.SESSION_MODEL_NAME,
       );
 
       const db_response = await db
@@ -55,11 +62,15 @@ export class SessionService {
         description: db_response[0].description,
       };
     } catch (err) {
-      if (err instanceof Error) {
-        this.logger.error(err);
-        throw new Error(err.message);
+      if (err instanceof OpenAIError) {
+        throw new AiServiceError(err.message, err.cause);
       }
-      throw new Error('Error while creating session');
+
+      if (err instanceof DrizzleError) {
+        throw new PersistenceError(err.message, err.cause);
+      }
+
+      throw err;
     }
   }
 
