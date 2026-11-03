@@ -16,13 +16,13 @@ export class SessionService {
     @Inject('session_config')
     private env: SessionConfig,
   ) {
-    const res = this.openaiService.createOpenAIInstance(
-      'SessionService ',
-      this.env.SESSION_OPENROUTER_KEY,
-      this.env.SESSION_OPENROUTER_BASE_URL,
-      this.env.SESSION_SYSTEM_PROMPT,
-      this.env.SESSION_MODEL_NAME,
-    );
+    // const res = this.openaiService.createOpenAIInstance(
+    //   'SessionService ',
+    //   this.env.SESSION_OPENROUTER_KEY,
+    //   this.env.SESSION_OPENROUTER_BASE_URL,
+    //   this.env.SESSION_SYSTEM_PROMPT,
+    //   this.env.SESSION_MODEL_NAME,
+    // );
   }
 
   async createSession(query: string) {

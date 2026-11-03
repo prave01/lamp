@@ -5,7 +5,7 @@ const socket = io("http://localhost:3000");
 
 const session = "6c4e9fc8-c507-4229-9b26-46a4a2fe6c8d";
 
-socket.on("connect", () => {
+socket.on("connect", async () => {
   console.log("Connected", socket.id);
 
   socket.emit("session:create_instance", {
@@ -32,6 +32,18 @@ socket.on("session:event", (event: ResponseStreamEvent) => {
       console.log(event.arguments);
       break;
   }
+});
+
+socket.on("connection_failed", (event) => {
+  console.log("session:error", event);
+});
+
+socket.on("session:error", (event) => {
+  console.error({
+    code: event.code,
+    message: event.message,
+    recoverable: event.recoverable,
+  });
 });
 
 socket.on("session:initiated", async (data) => {

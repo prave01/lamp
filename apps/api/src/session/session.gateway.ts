@@ -8,7 +8,7 @@ import { Socket } from 'socket.io';
 import { OpenaiService } from '../openai/openai.service';
 import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
 import { type SessionConfig } from '../config';
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, InternalServerErrorException, Logger } from '@nestjs/common';
 import { getSession } from '../database';
 import { ResponseStreamEvent } from 'openai/resources/responses/responses.js';
 
@@ -40,15 +40,6 @@ export class SessionGateway {
     try {
       const session = await getSession(data.sessionId);
 
-      await this.openaiService.createOpenAIInstance(
-        'SessionGateway',
-        this.env.SESSION_OPENROUTER_KEY,
-        this.env.SESSION_OPENROUTER_BASE_URL,
-        this.env.SESSION_SYSTEM_PROMPT,
-        this.env.SESSION_MODEL_NAME,
-        new DbContextManager(session.id),
-      );
-
       await this.openaiService.streamText(
         data.query,
         (event: ResponseStreamEvent) => {
@@ -72,8 +63,49 @@ export class SessionGateway {
       sessionId: string;
     },
   ) {
-    client.emit('session:initiated', {
+    try {
+      await this.openaiService.createOpenAIInstance(
+        'SessionGateway',
+        this.env.SESSION_OPENROUTER_KEY,
+        this.env.SESSION_OPENROUTER_BASE_URL,
+        this.env.SESSION_SYSTEM_PROMPT,
+        this.env.SESSION_MODEL_NAME,
+        new DbContextManager(data.sessionId),
+      );
+
+      client.emit('session:initiated', {
+        sessionId: data.sessionId,
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        this.handleError(err, client, false);
+        throw new Error(err.message, {
+          cause: err.cause,
+        });
+      }
+
+      throw new InternalServerErrorException('Something went wrong');
+    }
+  }
+
+  @SubscribeMessage('sessionlose')
+  async closeSession(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      sessionId: string;
+    },
+  ) {
+    client.emit('session:closed', {
       sessionId: data.sessionId,
+    });
+  }
+
+  async handleError(error: Error, client: Socket, recoverable: boolean) {
+    client.emit('session:error', {
+      code: 'OPENAI_INSTANCE_FAILED',
+      message: error.message ?? 'Something went wrong',
+      recoverable,
     });
   }
 }

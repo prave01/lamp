@@ -8,19 +8,16 @@ import OpenAI from "openai";
 import { executor, LLM_TOOL, ToolsResolver } from "../libs/tool";
 import { OpenAIInput } from "../libs/ai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { ZodObject, z } from "zod";
+import { ZodObject } from "zod";
 import pc from "picocolors";
 import { ContextManager } from "./contextManager";
 import { ResponseStreamEvent } from "openai/resources/responses/responses.js";
 
-/** Shape returned to the caller on success. */
 export interface GenerateTextResult {
   text: string;
-  /** Populated when the model invoked tools during the turn. */
   toolCalls: Array<{ name: string; callId: string; arguments: string }>;
 }
 
-/** Internal record used to correlate streamed function-call events. */
 interface ToolCallMeta {
   name: string;
   call_id: string;
@@ -41,19 +38,14 @@ export class OpenaiService {
 
   public isInstanceCreated: boolean;
 
-  private agentID: string;
   private llmTool: OpenAI.Responses.Tool[];
   private model: string;
-  private name: string;
 
   private apiKey: string;
   private baseUrl: string;
   private systemPrompt: string;
-  private outputSchema: ZodObject;
-  private serviceName: string;
   private context: ContextManager;
-
-  constructor() { }
+  private serviceName: string;
 
   async createOpenAIInstance(
     serviceName: string,
@@ -117,11 +109,13 @@ export class OpenaiService {
       content: query,
     });
 
-    const MAX_TURNS = 10;
+    const MAX_TURNS = 2;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const toolCallSet = new Map<string, ToolCallMeta>();
+
       const executedTools: GenerateTextResult["toolCalls"] = [];
+
       let finalText: string | undefined;
 
       const input = await this.context.load();
@@ -215,14 +209,9 @@ export class OpenaiService {
           }
         }
       } catch (err) {
-        // Re-throw Nest exceptions untouched so the filter can format them.
         if (err instanceof ServiceUnavailableException) throw err;
         if (err instanceof InternalServerErrorException) throw err;
 
-        this.logger.error(
-          `Error while streaming from OpenAI: ${(err as Error).message} `,
-          (err as Error).stack,
-        );
         throw new InternalServerErrorException(
           "Failed to generate response from model.",
           { cause: err },
@@ -244,18 +233,10 @@ export class OpenaiService {
           content: [{ type: "output_text", text: finalText, annotations: [] }],
         });
 
-        // this.logger.log(await this.context.load());
-
         return { text: finalText, toolCalls: executedTools };
       }
-
-      // Otherwise: loop again with tool outputs appended to history.
-      this.logger.debug(
-        `Turn ${turn + 1} produced ${toolCallSet.size} tool call(s); continuing.`,
-      );
     }
 
-    this.logger.error(`Exceeded ${MAX_TURNS} turns without final answer.`);
     throw new InternalServerErrorException(
       `Agent exceeded maximum of ${MAX_TURNS} turns without converging.`,
     );
