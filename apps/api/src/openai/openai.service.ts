@@ -97,11 +97,10 @@ export class OpenaiService {
 
   async streamText(
     query: string,
+    context: ContextManager,
     onEvent?: (event: ResponseStreamEvent) => void,
   ): Promise<GenerateTextResult> {
-    if (!this.isInstanceCreated) {
-      throw new Error("Please create an OpenAI instance");
-    }
+    this.context = context;
 
     await this.context.append({
       type: "message",

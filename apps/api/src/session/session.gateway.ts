@@ -1,7 +1,6 @@
 import {
   ConnectedSocket,
   MessageBody,
-  OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
@@ -104,6 +103,7 @@ export class SessionGateway {
 
       await this.openaiService.streamText(
         data.query,
+        new DbContextManager(data.sessionId),
         (event: ResponseStreamEvent) => {
           socket.emit('session:event', event);
         },
@@ -143,7 +143,7 @@ export class SessionGateway {
         new DbContextManager(data.sessionId),
       );
 
-      client.emit('session:initiated', {
+      await client.emit('session:initiated', {
         sessionId: data.sessionId,
       });
     } catch (err) {

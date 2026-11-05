@@ -73,23 +73,5 @@ export class SessionService {
       throw err;
     }
   }
-
-  async runSession(query: string, sessionId: string) {
-    const session = await db.query.sessionTable.findFirst({
-      where: {
-        id: sessionId,
-      },
-    });
-
-    if (!session) {
-      throw new Error('Please create a session first');
-    }
-
-    const res = await db.query.sessionTable.findFirst();
-
-    const response = await this.openaiService.streamText(query);
-
-    return response;
-  }
 }
 ('');

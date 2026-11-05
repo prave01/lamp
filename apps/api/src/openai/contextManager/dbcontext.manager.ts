@@ -4,7 +4,6 @@ import { db } from "../../database";
 import { messageTable } from "../../database/schema";
 import { eq } from "drizzle-orm";
 import type OpenAI from "openai";
-import { Items } from "openai/resources/conversations/items.js";
 
 export class DbContextManager implements ContextManager {
   constructor(private readonly sessionId: string) {

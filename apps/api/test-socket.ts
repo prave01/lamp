@@ -5,20 +5,28 @@ const socket = io("http://localhost:3000");
 
 const session = "6c4e9fc8-c507-4229-9b26-46a4a2fe6c8d";
 
-socket.onAny((eventName, ...args) => {
-  console.log(`[IN] ${eventName}`, args);
-});
-
-socket.onAnyOutgoing((eventName, ...args) => {
-  console.log(`[OUT] ${eventName}`, args);
-});
+// socket.onAny((eventName, ...args) => {
+//   console.log(`[IN] ${eventName}`, args);
+// });
+//
+// socket.onAnyOutgoing((eventName, ...args) => {
+//   console.log(`[OUT] ${eventName}`, args);
+// });
 
 socket.on("connect", async () => {
   console.log("Connected", socket.id);
 
-  await socket.emit("session:create-session", {
-    query: "Create me a whatsapp sales agent that can talk to customers",
+  // await socket.emit("session:create-session", {
+  //   query: "Create a whatsapp sales agent that can talk to customers",
+  // });
+  await socket.emit("session:create_instance", {
+    sessionId: session,
   });
+
+  // await socket.emit("session:run", {
+  //   sessionId: session,
+  //   query: "hi i am praveen",
+  // });
 });
 
 socket.on("session:event", (event: ResponseStreamEvent) => {
@@ -35,9 +43,6 @@ socket.on("session:event", (event: ResponseStreamEvent) => {
 
     case "response.function_call_arguments.done":
       console.log("response.function_call_arguments");
-      console.log(event.type);
-      console.log(event.item_id);
-      console.log(event.arguments);
       break;
   }
 });
@@ -59,7 +64,6 @@ socket.on("session:initiated", async (data) => {
 
   socket.emit("session:run", {
     sessionId: session,
-    query:
-      "Find the information about praveen thanikachalam by using the websearch tool",
+    query: "hi i am praveen",
   });
 });
