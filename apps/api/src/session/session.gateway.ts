@@ -19,6 +19,7 @@ import { ResponseStreamEvent } from 'openai/resources/responses/responses.js';
 import { WebSocketError } from './session.error';
 import { type CreateSession } from './types';
 import { SessionService } from './session.service';
+import { string } from 'zod';
 
 type RunSessionDto = {
   sessionId: string;
@@ -47,14 +48,12 @@ export class SessionGateway {
     @MessageBody() event: CreateSession,
   ) {
     try {
-      console.log(this.openaiService.isInstanceCreated);
-
       const session = await this.sessionService.createSession(event.query);
 
       if (!session) {
         throw new WebSocketError({
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-          message: 'Session not created ',
+          message: 'Session not created',
           recoverable: true,
         });
       }
@@ -169,6 +168,39 @@ export class SessionGateway {
   ) {
     client.emit('session:closed', {
       sessionId: data.sessionId,
+    });
+  }
+
+  @SubscribeMessage('session:delete')
+  async deleteSession(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      sessionId: string;
+    },
+  ) {
+    const { sessionId } = data;
+
+    if (typeof sessionId !== 'string') {
+      throw new WebSocketError({
+        message: 'Invalid input',
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+    }
+
+    const result = await this.sessionService.deleteSession(sessionId);
+
+    console.log('Result', result);
+
+    if (result !== sessionId) {
+      throw new WebSocketError({
+        message: 'No session found',
+        statusCode: HttpStatus.NOT_FOUND,
+      });
+    }
+
+    client.emit('session:deleted', {
+      sessionId,
     });
   }
 }

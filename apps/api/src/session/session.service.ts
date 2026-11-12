@@ -1,4 +1,5 @@
 import {
+  HttpStatus,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -10,7 +11,7 @@ import { db } from '../database';
 import { sessionTable } from '../database/schema';
 import z from 'zod';
 import { OpenAIError } from 'openai';
-import { DrizzleError } from 'drizzle-orm';
+import { DrizzleError, eq } from 'drizzle-orm';
 import { type SessionConfig } from '../config';
 import { AiServiceError, PersistenceError } from './session.error';
 
@@ -32,6 +33,7 @@ export class SessionService {
     );
   }
 
+  //basic CRUDS
   async createSession(query: string) {
     try {
       const response = await this.openaiService.generateText(
@@ -72,6 +74,22 @@ export class SessionService {
 
       throw err;
     }
+  }
+
+  async deleteSession(sessionId: string) {
+    console.log('input', sessionId);
+    const session = await db
+      .delete(sessionTable)
+      .where(eq(sessionTable.id, sessionId))
+      .returning({
+        sessionId: sessionTable.id,
+      });
+
+    if (!session[0].sessionId) {
+      throw new Error('Session not found');
+    }
+
+    return session[0].sessionId;
   }
 }
 ('');
