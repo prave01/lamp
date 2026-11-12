@@ -19,7 +19,6 @@ import { ResponseStreamEvent } from 'openai/resources/responses/responses.js';
 import { WebSocketError } from './session.error';
 import { type CreateSession } from './types';
 import { SessionService } from './session.service';
-import { string } from 'zod';
 
 type RunSessionDto = {
   sessionId: string;
