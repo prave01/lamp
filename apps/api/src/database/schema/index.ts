@@ -83,6 +83,8 @@ export const workflowTable = pgTable("workflows", {
     .references(() => sandboxTable.id),
   name: text().notNull(),
   description: text(),
+  containerId: uuid().notNull(),
+  containerStatus: text().notNull().default("stopped"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
 });
@@ -92,11 +94,8 @@ export const workflowVersionTable = pgTable("workflow_versions", {
   workflowId: uuid()
     .notNull()
     .references(() => workflowTable.id),
-  name: text().notNull(),
   description: text().notNull(),
-  version: integer().notNull(),
-  systemPrompt: text().notNull(),
-  tools: json().notNull(),
+  version: text().notNull(),
 });
 
 // query relations

@@ -1,56 +1,122 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { DockerService } from "./docker/docker.service";
+import { db } from "../database";
 import {
-  ModelSpecType,
-  type ToolDefinition,
-  type AgentSpec,
-} from "../tools/types";
-import { OpenaiService } from "../openai/openai.service";
-import { UuidService } from "nestjs-uuid";
-import { LLM_TOOL, ToolsResolver } from "../libs/tool";
-import { AgentWorkflowService } from "./createAgentWorkflow.service";
+  sandboxTable,
+  workflowTable,
+  workflowVersionTable,
+} from "../database/schema";
+import { eq } from "drizzle-orm";
 
 @Injectable()
-export class SandBoxService {
-  private logger = new Logger(SandBoxService.name);
-  private uuid: UuidService;
-  private AgentWorkflow: AgentWorkflowService;
+export class SandboxService {
+  constructor(private readonly dockerService: DockerService) { }
 
-  private name: string;
-  private id: string;
-  private model: ModelSpecType;
-  private description: string;
-  private systemPrompt: string;
-  private tools: ToolDefinition[];
+  async createSandbox(sessionId: string) {
+    const [sandbox] = await db
+      .insert(sandboxTable)
+      .values({
+        sessionId,
+      })
+      .returning({
+        id: sandboxTable.id,
+      });
 
-  private sandBox: {
-    id: string;
-    name: string;
-  };
+    return sandbox;
+  }
 
-  private readonly openaiService: OpenaiService;
+  async createWorkflow(
+    sandboxId: string,
+    options: {
+      name: string;
+      version: string;
+      descrption?: string;
+      containerId: string;
+      containerStatus: string;
+    },
+  ) {
+    const [workflow] = await db
+      .insert(workflowTable)
+      .values({
+        name: options.name,
+        containerId: options.containerId,
+        description: options.descrption ?? "nothing",
+        containerStatus: options.containerStatus,
+        sandboxId,
+      })
+      .returning({
+        id: workflowTable.id,
+      });
 
-  constructor(private args: AgentSpec) {
-    this.tools = ToolsResolver({
-      agentId: this.id,
-      tools: args.tools,
+    await db.insert(workflowVersionTable).values({
+      description: options.descrption ?? "nothing",
+      version: options.version,
+      workflowId: workflow.id,
     });
+
+    return workflow;
   }
 
-  async initSandBox() {
-    this.sandBox = {
-      name: `SandBox - ${this.name}`,
-      id: this.uuid.generate(),
-    };
+  async createExecutableContainer(
+    sandboxId: string,
+    options: {
+      name: string;
+      image?: string;
+      workingDir?: string;
+      description: string;
+    },
+  ) {
+    const [sandbox] = await db
+      .select()
+      .from(sandboxTable)
+      .where(eq(sandboxTable.id, sandboxId))
+      .limit(1);
 
-    this.logger.log(
-      `
-        SandBoxName ${this.sandBox.name} \n
-        SandBoxId ${this.sandBox.id}
-    `,
-    );
+    if (!sandbox) {
+      throw new Error("Sandbox not found");
+    }
 
-    const createdWorkflow = this.AgentWorkflow;
+    const container = await this.dockerService.createContainer({
+      Image: options.image ?? "agent-runtime:latest",
+      name: options.name,
+
+      Cmd: ["sleep", "infinity"],
+
+      WorkingDir: options.workingDir ?? "/workspace",
+
+      Labels: {
+        "app.managed-by": "agent-builder",
+        "app.sandbox-id": sandboxId,
+      },
+
+      HostConfig: {
+        Memory: 512 * 1024 * 1024,
+        NanoCpus: 1_000_000_000,
+        PidsLimit: 128,
+
+        ReadonlyRootfs: true,
+        CapDrop: ["ALL"],
+        SecurityOpt: ["no-new-privileges:true"],
+
+        NetworkMode: "none",
+
+        Tmpfs: {
+          "/tmp": "rw,noexec,nosuid,size=64m",
+          "/workspace": "rw,nosuid,size=256m",
+        },
+      },
+    });
+
+    await container.start();
+
+    const workflow = await this.createWorkflow(sandboxId, {
+      name: options.name,
+      containerId: container.id,
+      containerStatus: "running",
+      version: `v1`,
+      descrption: options.description,
+    });
+
+    return workflow;
   }
-
-  async run() { }
 }

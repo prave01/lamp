@@ -1,11 +1,8 @@
 import { Module } from "@nestjs/common";
-import { OpenaiModule } from "../openai/openai.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { getEnvConfig } from "../config";
-import { AgentWorkflowService } from "./createAgentWorkflow.service";
+import { DockerService } from "./docker/docker.service";
 
 @Module({
-  providers: [AgentWorkflowService],
+  providers: [DockerService],
   imports: [],
 })
 export class SandBoxModule { }
