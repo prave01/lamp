@@ -29,13 +29,13 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       envFilePath: ".env.local",
       ignoreEnvVars: true,
     }),
-    SessionModule.forRootAsync({
+    OpenaiModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) =>
-        getEnvConfig(configService, "SessionConfig.ENV"),
+        getEnvConfig(configService, "OpenaiConfig.ENV"),
       inject: [ConfigService],
     }),
-    OpenaiModule,
+    SessionModule,
     SandBoxModule,
   ],
   controllers: [AppController],

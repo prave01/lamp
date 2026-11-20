@@ -51,7 +51,7 @@ export class DbContextManager implements ContextManager {
       } as ResponseInputItem;
     });
   }
-  async append(item: OpenAI.Responses.ResponseInputItem) {
+  async append(item: OpenAI.Responses.ResponseInputItem): Promise<void> {
     if (item.type === "message") {
       await db.insert(messageTable).values({
         sessionId: this.sessionId,
