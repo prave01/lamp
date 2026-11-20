@@ -9,7 +9,6 @@ import { OpenaiService } from '../openai/openai.service';
 import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
 import {
   HttpStatus,
-  Inject,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
@@ -43,6 +42,8 @@ export class SessionGateway {
     @MessageBody() event: CreateSession,
   ) {
     try {
+      console.log('Creating session');
+
       const session = await this.sessionService.createSession(event.query);
 
       if (!session) {
@@ -98,7 +99,7 @@ export class SessionGateway {
       await this.openaiService.streamText(
         new DbContextManager(data.sessionId),
         data.query,
-        'nvidia/nemotron-3.5-super-vl:free',
+        'openai/gpt-oss-120b',
         'Be a cool, genz assistant',
         (event: ResponseStreamEvent) => {
           socket.emit('session:event', event);
@@ -120,31 +121,6 @@ export class SessionGateway {
       throw new InternalServerErrorException('Unknown Error');
     }
   }
-
-  // @SubscribeMessage('session:create_instance')
-  // async initSession(
-  //   @ConnectedSocket() client: Socket,
-  //   @MessageBody()
-  //   data: {
-  //     sessionId: string;
-  //   },
-  // ) {
-  //   try {
-  //     await client.emit('session:initiated', {
-  //       sessionId: data.sessionId,
-  //     });
-  //   } catch (err) {
-  //     if (err instanceof WebSocketError) {
-  //       throw new Error(err.message);
-  //     }
-  //
-  //     if (err instanceof Error) {
-  //       throw new Error(err.message);
-  //     }
-  //
-  //     throw new InternalServerErrorException('Unknown Error');
-  //   }
-  // }
 
   @SubscribeMessage('session:close')
   async closeSession(

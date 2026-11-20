@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx watch --tsconfig tsconfig.app.json --clear-screen=true src/cli.tsx",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -13,7 +13,8 @@
     "@types/ink": "^2.0.3",
     "ink": "^8.0.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "socket.io-client": "^4.8.4"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

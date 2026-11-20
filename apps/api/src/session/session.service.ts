@@ -21,7 +21,7 @@ export class SessionService {
           title: z.string().describe("Title for the session"),
           description: z.string().describe("Description about the session"),
         }),
-        "mistralai/mistral-nemo",
+        "qwen/qwen3.7-flash",
         query,
       );
 
