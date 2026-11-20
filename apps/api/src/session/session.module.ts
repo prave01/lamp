@@ -1,35 +1,19 @@
-import { DynamicModule, Module } from "@nestjs/common";
-import { SessionController } from "./session.controller";
-import { SessionService } from "./session.service";
-import { type SessionConfig } from "../config";
+import { Module } from "@nestjs/common";
 import { OpenaiModule } from "../openai/openai.module";
+import { SessionService } from "./session.service";
 import { SessionGateway } from "./session.gateway";
-
-interface CreateIdeaModuleAsyncOptions<T> {
-  inject: any[];
-  imports: any[];
-  useFactory: (...args: any[]) => T;
-}
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { getEnvConfig } from "../config";
 
 @Module({
-  controllers: [SessionController],
+  imports: [
+    OpenaiModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        getEnvConfig(configService, "OpenaiConfig.ENV"),
+    }),
+  ],
   providers: [SessionService, SessionGateway],
-  imports: [OpenaiModule],
 })
-export class SessionModule {
-  static forRootAsync(
-    options: CreateIdeaModuleAsyncOptions<SessionConfig>,
-  ): DynamicModule {
-    return {
-      module: SessionModule,
-      imports: options.imports,
-      providers: [
-        {
-          provide: "session_config",
-          inject: options.inject,
-          useFactory: options.useFactory,
-        },
-      ],
-    };
-  }
-}
+export class SessionModule { }

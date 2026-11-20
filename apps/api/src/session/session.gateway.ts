@@ -7,7 +7,6 @@ import {
 import { Socket } from 'socket.io';
 import { OpenaiService } from '../openai/openai.service';
 import { DbContextManager } from '../openai/contextManager/dbcontext.manager';
-import { type SessionConfig } from '../config';
 import {
   HttpStatus,
   Inject,
@@ -36,9 +35,6 @@ export class SessionGateway {
   constructor(
     private readonly openaiService: OpenaiService,
     private readonly sessionService: SessionService,
-
-    @Inject('session_config')
-    private env: SessionConfig,
   ) { }
 
   @SubscribeMessage('session:create-session')
@@ -100,8 +96,10 @@ export class SessionGateway {
         });
 
       await this.openaiService.streamText(
-        data.query,
         new DbContextManager(data.sessionId),
+        data.query,
+        'nvidia/nemotron-3.5-super-vl:free',
+        'Be a cool, genz assistant',
         (event: ResponseStreamEvent) => {
           socket.emit('session:event', event);
         },
@@ -123,39 +121,30 @@ export class SessionGateway {
     }
   }
 
-  @SubscribeMessage('session:create_instance')
-  async initSession(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      sessionId: string;
-    },
-  ) {
-    try {
-      await this.openaiService.createOpenAIInstance(
-        'SessionGateway',
-        this.env.SESSION_OPENROUTER_KEY,
-        this.env.SESSION_OPENROUTER_BASE_URL,
-        this.env.SESSION_SYSTEM_PROMPT,
-        this.env.SESSION_MODEL_NAME,
-        new DbContextManager(data.sessionId),
-      );
-
-      await client.emit('session:initiated', {
-        sessionId: data.sessionId,
-      });
-    } catch (err) {
-      if (err instanceof WebSocketError) {
-        throw new Error(err.message);
-      }
-
-      if (err instanceof Error) {
-        throw new Error(err.message);
-      }
-
-      throw new InternalServerErrorException('Unknown Error');
-    }
-  }
+  // @SubscribeMessage('session:create_instance')
+  // async initSession(
+  //   @ConnectedSocket() client: Socket,
+  //   @MessageBody()
+  //   data: {
+  //     sessionId: string;
+  //   },
+  // ) {
+  //   try {
+  //     await client.emit('session:initiated', {
+  //       sessionId: data.sessionId,
+  //     });
+  //   } catch (err) {
+  //     if (err instanceof WebSocketError) {
+  //       throw new Error(err.message);
+  //     }
+  //
+  //     if (err instanceof Error) {
+  //       throw new Error(err.message);
+  //     }
+  //
+  //     throw new InternalServerErrorException('Unknown Error');
+  //   }
+  // }
 
   @SubscribeMessage('session:close')
   async closeSession(

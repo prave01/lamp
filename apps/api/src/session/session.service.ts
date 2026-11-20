@@ -1,49 +1,28 @@
-import {
-  HttpStatus,
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotImplementedException,
-} from '@nestjs/common';
-import { OpenaiService } from '../openai/openai.service';
-import { db } from '../database';
-import { sessionTable } from '../database/schema';
-import z from 'zod';
-import { OpenAIError } from 'openai';
-import { DrizzleError, eq } from 'drizzle-orm';
-import { type SessionConfig } from '../config';
-import { AiServiceError, PersistenceError } from './session.error';
+import { Injectable, Logger } from "@nestjs/common";
+import { OpenaiService } from "../openai/openai.service";
+import { db } from "../database";
+import { sessionTable } from "../database/schema";
+import z from "zod";
+import { OpenAIError } from "openai";
+import { DrizzleError, eq } from "drizzle-orm";
+import { AiServiceError, PersistenceError } from "./session.error";
 
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
-  private openaiService = new OpenaiService();
 
-  constructor(
-    @Inject('session_config')
-    private env: SessionConfig,
-  ) {
-    this.openaiService.createOpenAIInstance(
-      'SessionService',
-      this.env.SESSION_OPENROUTER_KEY,
-      this.env.SESSION_OPENROUTER_BASE_URL,
-      this.env.SESSION_SYSTEM_PROMPT,
-      this.env.SESSION_MODEL_NAME,
-    );
-  }
+  constructor(private readonly openaiService: OpenaiService) { }
 
-  //basic CRUDS
   async createSession(query: string) {
     try {
       const response = await this.openaiService.generateText(
-        query,
-        'Generate session metadata',
+        "Generate session metadata",
         z.object({
-          title: z.string().describe('Title for the session'),
-          description: z.string().describe('Description about the session'),
+          title: z.string().describe("Title for the session"),
+          description: z.string().describe("Description about the session"),
         }),
-        this.env.SESSION_MODEL_NAME,
+        "mistralai/mistral-nemo",
+        query,
       );
 
       const db_response = await db
@@ -77,7 +56,7 @@ export class SessionService {
   }
 
   async deleteSession(sessionId: string) {
-    console.log('input', sessionId);
+    console.log("input", sessionId);
     const session = await db
       .delete(sessionTable)
       .where(eq(sessionTable.id, sessionId))
@@ -86,10 +65,10 @@ export class SessionService {
       });
 
     if (!session[0].sessionId) {
-      throw new Error('Session not found');
+      throw new Error("Session not found");
     }
 
     return session[0].sessionId;
   }
 }
-('');
+("");

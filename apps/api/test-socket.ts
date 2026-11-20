@@ -21,15 +21,14 @@ socket.on("connect", async () => {
   //   sessionId: "8477f5ff-e333-4d9d-9775-7fc98f0514e7",
   // });
 
-  // await socket.emit("session:create-session", {
-  //   query: "Create a whatsapp sales agent that can talk to customers",
-  // });
-  await socket.emit("session:create_instance", {
-    sessionId: session,
+  await socket.emit("session:create-session", {
+    query: "Create a whatsapp sales agent that can talk to customers",
   });
+});
 
-  await socket.emit("session:run", {
-    sessionId: session,
+socket.on("session:created", (data) => {
+  socket.emit("session:run", {
+    sessionId: data.sessionId,
     query: "hi i am praveen",
   });
 });
