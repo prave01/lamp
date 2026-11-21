@@ -52,7 +52,7 @@ export class OpenaiService {
 
     const tool = this.toolService.toolResolver({
       agentId: 'core',
-      tools: ['tool-websearch'],
+      tools: ['tool-websearch', 'tool-create_container'],
     });
 
     this.llmTool = this.toolService.toLLMTool(tool);

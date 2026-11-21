@@ -1,11 +1,9 @@
 import { defineRelations } from "drizzle-orm";
 import {
-  integer,
   pgTable,
   varchar,
   timestamp,
   text,
-  json,
   uuid,
   pgEnum,
   jsonb,

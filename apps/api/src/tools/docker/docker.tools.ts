@@ -6,10 +6,10 @@ import { createTool } from "..";
 
 @Injectable()
 export class DockerTools {
-  public create_container: ToolDefinition;
+  public createContainer: ToolDefinition;
 
   constructor(private readonly sandboxService: SandboxService) {
-    this.create_container = createTool({
+    this.createContainer = createTool({
       name: "create_container",
       description: "Create docker container in the sandbox environment",
       inputSchema: CreateContainerSchema,

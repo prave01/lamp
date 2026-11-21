@@ -105,6 +105,8 @@ export class SessionGateway {
           socket.emit('session:event', event);
         },
       );
+
+      socket.emit('session:finished', { sessionId: data.sessionId });
     } catch (err) {
       if (err instanceof WebSocketError) {
         throw new Error(err.message, {
@@ -122,6 +124,32 @@ export class SessionGateway {
     }
   }
 
+  @SubscribeMessage('session:get-messages')
+  async getMessages(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      sessionId: string;
+    },
+  ) {
+    const session = await getSession(data.sessionId);
+
+    if (!session)
+      throw new WebSocketError({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: `Session not found for ${data.sessionId}`,
+      });
+
+    const messages = await this.sessionService.getMessagesForSession(
+      data.sessionId,
+    );
+
+    client.emit('session:messages', {
+      sessionId: data.sessionId,
+      messages,
+    });
+  }
+
   @SubscribeMessage('session:close')
   async closeSession(
     @ConnectedSocket() client: Socket,
@@ -132,6 +160,15 @@ export class SessionGateway {
   ) {
     client.emit('session:closed', {
       sessionId: data.sessionId,
+    });
+  }
+
+  @SubscribeMessage('session:list')
+  async listSessions(@ConnectedSocket() client: Socket) {
+    const data = await this.sessionService.listAllSessions();
+
+    client.emit('session:lists', {
+      data,
     });
   }
 

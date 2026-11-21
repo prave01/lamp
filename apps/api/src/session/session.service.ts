@@ -1,17 +1,62 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { OpenaiService } from "../openai/openai.service";
 import { db } from "../database";
-import { sessionTable } from "../database/schema";
+import { messageTable, sessionTable } from "../database/schema";
 import z from "zod";
 import { OpenAIError } from "openai";
-import { DrizzleError, eq } from "drizzle-orm";
+import { desc, DrizzleError, eq } from "drizzle-orm";
 import { AiServiceError, PersistenceError } from "./session.error";
+import { SandboxService } from "../sandbox/sandbox.service";
 
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
 
-  constructor(private readonly openaiService: OpenaiService) { }
+  constructor(
+    private readonly openaiService: OpenaiService,
+    private readonly sandboxService: SandboxService,
+  ) { }
+
+  async listAllSessions() {
+    const sessions = await db.query.sessionTable.findMany();
+
+    return sessions;
+  }
+
+  async getMessagesForSession(sessionId: string) {
+    const session = await db.query.sessionTable.findFirst({
+      where: {
+        id: sessionId,
+      },
+    });
+
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    const messages = await db.query.messageTable.findMany({
+      where: {
+        sessionId: sessionId,
+      },
+      orderBy: (messages, { desc }) => [desc(messages.createdAt)],
+    });
+
+    return messages;
+  }
+
+  async getSessionDetails(sessionId: string) {
+    const session = await db.query.sessionTable.findFirst({
+      where: {
+        id: sessionId,
+      },
+    });
+
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    return session;
+  }
 
   async createSession(query: string) {
     try {
@@ -25,7 +70,7 @@ export class SessionService {
         query,
       );
 
-      const db_response = await db
+      const [session] = await db
         .insert(sessionTable)
         .values({
           title: response?.title as string,
@@ -33,14 +78,17 @@ export class SessionService {
         })
         .returning();
 
+      const sandbox = await this.sandboxService.createSandbox(session.id);
+
       this.logger.log({
-        inserted: db_response,
+        inserted: session,
       });
 
       return {
-        sessionId: db_response[0].id,
-        title: db_response[0].title,
-        description: db_response[0].description,
+        sessionId: session.id,
+        sandboxId: sandbox.id,
+        title: session.title,
+        description: session.description,
       };
     } catch (err) {
       if (err instanceof OpenAIError) {

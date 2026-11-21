@@ -3,6 +3,7 @@ import { type AgentToolRequest } from "./tools.types";
 import { Injectable, Logger } from "@nestjs/common";
 import { WebTools } from "./web/web.tools";
 import { DockerTools } from "./docker/docker.tools";
+import { SessionTools } from "./session/session.tools";
 
 const logger = new Logger("ToolRegistry");
 
@@ -13,6 +14,7 @@ export class ToolRegistry {
   constructor(
     private readonly dockerTools: DockerTools,
     private readonly webTools: WebTools,
+    private readonly sessionTools: SessionTools,
   ) {
     this.toolRegistry = [
       {
@@ -20,7 +22,11 @@ export class ToolRegistry {
         availableFor: ["core", "agent-runner"],
       },
       {
-        tool: this.dockerTools.create_container,
+        tool: this.dockerTools.createContainer,
+        availableFor: ["core"],
+      },
+      {
+        tool: this.sessionTools.getSessionDetails,
         availableFor: ["core"],
       },
     ];
