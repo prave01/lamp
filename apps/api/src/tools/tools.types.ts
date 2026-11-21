@@ -1,3 +1,4 @@
+import OpenAI from "openai";
 import z from "zod";
 
 export const ToolDefinitionSchema = z.object({
@@ -11,6 +12,11 @@ export const ToolDefinitionSchema = z.object({
 
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
+export type AgentToolRequest = {
+  agentId: string;
+  tools: Array<string>;
+};
+
 export const ModelSpec = z.object({
   provider: z.enum(["anthropic", "openai"]).default("openai"),
   modelName: z.string(),
@@ -18,6 +24,8 @@ export const ModelSpec = z.object({
 });
 
 export type ModelSpecType = z.infer<typeof ModelSpec>;
+
+export type OpenAITool = OpenAI.Responses.Tool;
 
 export type CreateTool<TInputSchema extends z.ZodType = z.ZodType> = {
   name: string;

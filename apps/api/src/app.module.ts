@@ -10,6 +10,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { OpenaiModule } from "./openai/openai.module";
 import { SandBoxModule } from "./sandbox/sandbox.module";
 import { UuidModule } from "nestjs-uuid";
+import { ToolsModule } from "./tools/tools.module";
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -30,7 +31,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       ignoreEnvVars: true,
     }),
     OpenaiModule.forRootAsync({
-      imports: [ConfigModule],
+      imports: [ConfigModule, ToolsModule],
       useFactory: (configService: ConfigService) =>
         getEnvConfig(configService, "OpenaiConfig.ENV"),
       inject: [ConfigService],

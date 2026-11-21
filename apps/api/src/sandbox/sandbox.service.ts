@@ -7,6 +7,7 @@ import {
   workflowVersionTable,
 } from "../database/schema";
 import { eq } from "drizzle-orm";
+import { CreateContainer } from "./sandbox.types";
 
 @Injectable()
 export class SandboxService {
@@ -25,7 +26,7 @@ export class SandboxService {
     return sandbox;
   }
 
-  async createWorkflow(
+  private async createWorkflow(
     sandboxId: string,
     options: {
       name: string;
@@ -57,19 +58,11 @@ export class SandboxService {
     return workflow;
   }
 
-  async createExecutableContainer(
-    sandboxId: string,
-    options: {
-      name: string;
-      image?: string;
-      workingDir?: string;
-      description: string;
-    },
-  ) {
+  async createExecutableContainer(input: CreateContainer) {
     const [sandbox] = await db
       .select()
       .from(sandboxTable)
-      .where(eq(sandboxTable.id, sandboxId))
+      .where(eq(sandboxTable.id, input.sandboxId))
       .limit(1);
 
     if (!sandbox) {
@@ -77,16 +70,16 @@ export class SandboxService {
     }
 
     const container = await this.dockerService.createContainer({
-      Image: options.image ?? "agent-runtime:latest",
-      name: options.name,
+      Image: input.options.image ?? "agent-runtime:latest",
+      name: input.options.name,
 
       Cmd: ["sleep", "infinity"],
 
-      WorkingDir: options.workingDir ?? "/workspace",
+      WorkingDir: input.options.workingDir ?? "/workspace",
 
       Labels: {
         "app.managed-by": "agent-builder",
-        "app.sandbox-id": sandboxId,
+        "app.sandbox-id": input.sandboxId,
       },
 
       HostConfig: {
@@ -109,14 +102,16 @@ export class SandboxService {
 
     await container.start();
 
-    const workflow = await this.createWorkflow(sandboxId, {
-      name: options.name,
+    const workflow = await this.createWorkflow(input.sandboxId, {
+      name: input.options.name,
       containerId: container.id,
       containerStatus: "running",
       version: `v1`,
-      descrption: options.description,
+      descrption: input.options.description,
     });
 
-    return workflow;
+    return {
+      containerId: container.id,
+    };
   }
 }

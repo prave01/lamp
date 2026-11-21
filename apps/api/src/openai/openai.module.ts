@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from "@nestjs/common";
 import { OpenaiService } from "./openai.service";
 import { type OpenaiConfig } from "../config";
+import { ToolsModule } from "../tools/tools.module";
 
 interface CreateOpenAiModuleAsyncOptions<T> {
   inject: any[];
@@ -15,7 +16,7 @@ export class OpenaiModule {
   ): DynamicModule {
     return {
       module: OpenaiModule,
-      imports: options.imports ?? [],
+      imports: [...(options.imports ?? []), ToolsModule],
       providers: [
         OpenaiService,
         {

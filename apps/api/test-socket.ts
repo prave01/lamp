@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 
 const socket = io("http://localhost:3000");
 
-const session = "6c4e9fc8-c507-4229-9b26-46a4a2fe6c8d";
+const session = "29b2a4d8-2d30-49d7-bdc6-4b7314a2e089";
 
 // socket.onAny((eventName, ...args) => {
 //   console.log(`[IN] ${eventName}`, args);
@@ -21,15 +21,20 @@ socket.on("connect", async () => {
   //   sessionId: "8477f5ff-e333-4d9d-9775-7fc98f0514e7",
   // });
 
-  await socket.emit("session:create-session", {
-    query: "Create a whatsapp sales agent that can talk to customers",
+  // await socket.emit("session:create-session", {
+  //   query: "Create a whatsapp sales agent that can talk to customers",
+  // });
+
+  socket.emit("session:run", {
+    sessionId: session,
+    query: "use the web searching tool and find who is praveen thanikachalam",
   });
 });
 
 socket.on("session:created", (data) => {
   socket.emit("session:run", {
     sessionId: data.sessionId,
-    query: "hi i am praveen",
+    query: "use the web searching tool and find who is praveen thanikachalam",
   });
 });
 

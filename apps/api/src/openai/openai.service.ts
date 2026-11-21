@@ -5,9 +5,7 @@ import {
   ServiceUnavailableException,
   Inject,
 } from '@nestjs/common';
-import OpenAI, { OpenAIError } from 'openai';
-import { executor, LLM_TOOL, ToolsResolver } from '../libs/tool';
-import { OpenAIInput } from '../libs/ai';
+import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { ZodObject } from 'zod';
 import pc from 'picocolors';
@@ -15,6 +13,7 @@ import { ContextManager } from './contextManager';
 import { ResponseStreamEvent } from 'openai/resources/responses/responses.js';
 import { db } from '../database';
 import { type OpenaiConfig } from '../config';
+import { ToolsService } from '../tools/tools.service';
 
 export interface GenerateTextResult {
   text: string;
@@ -43,18 +42,20 @@ export class OpenaiService {
   constructor(
     @Inject('openai_config')
     private readonly env: OpenaiConfig,
+
+    private readonly toolService: ToolsService,
   ) {
     this.openai = new OpenAI({
       apiKey: this.env.API_KEY,
       baseURL: this.env.BASE_URL,
     });
 
-    const tool = ToolsResolver({
+    const tool = this.toolService.toolResolver({
       agentId: 'core',
       tools: ['tool-websearch'],
     });
 
-    this.llmTool = LLM_TOOL(tool);
+    this.llmTool = this.toolService.toLLMTool(tool);
   }
 
   async streamText(
@@ -228,7 +229,7 @@ export class OpenaiService {
     query: string,
   ) {
     try {
-      const messages: OpenAIInput = [
+      const messages: any = [
         {
           role: 'system',
           content: systemPrompt,
@@ -259,7 +260,11 @@ export class OpenaiService {
     args: string,
   ): Promise<string> {
     try {
-      const result = await executor('core', `tool-${toolName}`, args);
+      const result = await this.toolService.executor(
+        'core',
+        `tool-${toolName}`,
+        args,
+      );
       return typeof result === 'string' ? result : JSON.stringify(result);
     } catch (err) {
       this.logger.error(

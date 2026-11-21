@@ -1,5 +1,11 @@
-import { webSearchTool } from "./tools";
+import z from "zod";
+import type { CreateTool, ToolDefinition } from "./tools.types";
 
-export const Tools = {
-  webSearchTool,
-};
+export function createTool<TInputSchema extends z.ZodType>(
+  tool: CreateTool<TInputSchema>,
+): ToolDefinition {
+  return {
+    id: `tool-${tool.name}`,
+    ...tool,
+  };
+}
