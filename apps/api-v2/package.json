@@ -8,8 +8,10 @@
     "drizzle-kit": "1.0.0-rc.5",
     "drizzle-orm": "1.0.0-rc.5",
     "hono": "^4.13.16",
+    "openai": "^7.25.0",
     "pg": "^8.23.1",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/bun": "latest"
