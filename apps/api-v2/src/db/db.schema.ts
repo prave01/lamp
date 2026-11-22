@@ -5,6 +5,7 @@ export const messageRoleEnum = pgEnum("message_role", [
   "assistant",
   "user",
   "system",
+  "developer",
 ]);
 export const messageTypeEnum = pgEnum("message_type", [
   "message",
@@ -32,7 +33,11 @@ export const messageTable = pgTable("messages", {
     .references(() => sessionTable.id),
   role: messageRoleEnum("role").notNull(),
   type: messageTypeEnum("type").notNull(),
-  content: text("content").notNull(),
+  content: text("content"),
+  name: text("function_call_name"),
+  callId: text("function_call_id"),
+  arguments: text("function_call_args"),
+  status: text("function_call_status"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
