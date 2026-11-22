@@ -2,6 +2,8 @@ import { defineConfig } from "drizzle-kit";
 import { loadEnvFile } from "process";
 loadEnvFile("./.env.local");
 
+console.log(process.env.DATABASE_URL!);
+
 export default defineConfig({
   out: "./drizzle",
   schema: "./src/database/schema/index.ts",

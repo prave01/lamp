@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agentbuilder-v2
+    restart: always
+    environment:
+      POSTGRES_USER: tyler_durden
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: agentbuilder-v2
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgres/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tyler_durden -d agentbuilder-v2"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

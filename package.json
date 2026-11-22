@@ -4,9 +4,11 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "start:dev:api": "pnpm --filter=api run dev",
+    "start:dev:api": "pnpm --filter=api-v2 run dev",
     "start:dev:tui": "pnpm --filter=tui run dev",
     "start:dev:web": "pnpm --filter=web run dev",
+    "db:dev:push": "pnpm --filter=api-v2 exec npx drizzle-kit push",
+    "api:docker:compose": "pnpm --filter=api-v2 exec docker compose -f dev.compose.yml up -d",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"
