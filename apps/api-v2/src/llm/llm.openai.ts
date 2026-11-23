@@ -2,9 +2,13 @@ import OpenAI, { OpenAIError } from "openai";
 import { getConfig } from "../config";
 import { DbContext } from "./context/db.context";
 import { db } from "../db";
+import z from "zod";
 
 import type { ToolCallMeta } from "./llm.types";
-import { executor, ToolRegistry } from "./tools/tools.registry";
+import { executor, ToolResolver } from "./tools/index";
+import { ZodType } from "zod";
+import { zodTextFormat } from "openai/helpers/zod";
+import { ToolRegistry } from "./tools/tools.registry";
 
 const config = getConfig("openai");
 
@@ -23,8 +27,9 @@ export const runLoop = async (
   systemPrompt: string,
   model: string,
   dbCtx: DbContext,
+  onEvent?: (event: OpenAI.Responses.ResponseStreamEvent) => void,
 ) => {
-  const MAX_TURNS = 2;
+  const MAX_TURNS = 10;
 
   // prevent from adding system prompt muiltiple times
   const message = await db.query.messageTable.findFirst({
@@ -33,6 +38,8 @@ export const runLoop = async (
       role: "system",
     },
   });
+
+  const tools = ToolResolver(["getWeather"]);
 
   if (!message) {
     console.log("Added system prompt");
@@ -61,9 +68,14 @@ export const runLoop = async (
       const stream = client.responses.stream({
         input: await dbCtx.load(),
         model: model,
+        tools,
       });
 
       for await (const event of stream) {
+        if (onEvent) {
+          onEvent(event);
+        }
+
         switch (event.type) {
           case "response.output_text.delta":
             process.stdout.write(event.delta);
@@ -84,6 +96,9 @@ export const runLoop = async (
 
           case "response.function_call_arguments.done": {
             const tool = toolCallSet.get(event.item_id);
+
+            console.log("Tool call:", tool?.name);
+            console.log("Args:", event.arguments);
 
             if (!tool) {
               console.log(
@@ -156,6 +171,11 @@ export const runLoop = async (
         role: "assistant",
         content: finalText,
       });
+
+      return {
+        finalText,
+        executedTools,
+      };
     }
   }
 
@@ -163,3 +183,31 @@ export const runLoop = async (
     `Agent exceeded maximum of ${MAX_TURNS} turns without converging.`,
   );
 };
+
+export async function generateText<T extends ZodType>(
+  query: string,
+  systemPrompt: string,
+  model: string,
+  outputSchema: T,
+): Promise<z.infer<T>> {
+  const input: OpenAI.Responses.ResponseInput = [
+    {
+      role: "system",
+      content: systemPrompt,
+    },
+    {
+      role: "user",
+      content: query,
+    },
+  ];
+
+  const output = await client.responses.parse({
+    input,
+    model,
+    text: {
+      format: zodTextFormat(outputSchema, "output-schema"),
+    },
+  });
+
+  return output.output_parsed as z.infer<T>;
+}

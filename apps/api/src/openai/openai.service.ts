@@ -243,9 +243,7 @@ export class OpenaiService {
       const responses = await this.openai.responses.parse({
         input: messages,
         model: model,
-        text: {
-          format: zodTextFormat(outputSchema, 'generate-session'),
-        },
+        text: { format: zodTextFormat(outputSchema, 'generate-session') },
       });
 
       return responses.output_parsed;

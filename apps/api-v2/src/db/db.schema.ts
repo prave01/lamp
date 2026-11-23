@@ -30,7 +30,7 @@ export const messageTable = pgTable("messages", {
   id: uuid().primaryKey().defaultRandom(),
   sessionId: uuid()
     .notNull()
-    .references(() => sessionTable.id),
+    .references(() => sessionTable.id, { onDelete: "cascade" }),
   role: messageRoleEnum("role").notNull(),
   type: messageTypeEnum("type").notNull(),
   content: text("content"),

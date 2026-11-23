@@ -21,7 +21,7 @@ export class DbContext {
         type: input.type,
         role: input.role,
         sessionId: this.sessionId,
-        content: JSON.stringify(input.content),
+        content: input.content as string,
       });
     }
 
