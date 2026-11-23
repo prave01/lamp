@@ -4,6 +4,7 @@ import { DbContext } from "./context/db.context";
 import { db } from "../db";
 
 import type { ToolCallMeta } from "./llm.types";
+import { executor, ToolRegistry } from "./tools/tools.registry";
 
 const config = getConfig("openai");
 
@@ -46,8 +47,11 @@ export const runLoop = async (
   await dbCtx.append({
     type: "message",
     content: query,
+
     role: "user",
   });
+
+  let finalText: string | undefined;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const toolCallSet = new Map<string, ToolCallMeta>();
@@ -65,6 +69,10 @@ export const runLoop = async (
             process.stdout.write(event.delta);
             break;
 
+          case "response.output_text.done":
+            finalText = event.text;
+            break;
+
           case "response.output_item.added":
             if (event.item.type === "function_call" && event.item.id) {
               toolCallSet.set(event.item.id, {
@@ -74,7 +82,7 @@ export const runLoop = async (
             }
             break;
 
-          case "response.function_call_arguments.done":
+          case "response.function_call_arguments.done": {
             const tool = toolCallSet.get(event.item_id);
 
             if (!tool) {
@@ -91,7 +99,42 @@ export const runLoop = async (
               arguments: event.arguments,
             });
 
-          // executor goes here
+            // executor goes here
+            const result = executor(
+              tool.name as keyof typeof ToolRegistry,
+              event.arguments,
+            );
+
+            await dbCtx.append({
+              name: tool.name,
+              type: "function_call_output",
+              call_id: tool.call_id,
+              output: JSON.stringify(result),
+            });
+
+            executedTools.push({
+              name: tool.name,
+              callId: tool.call_id,
+              arguments: event.arguments,
+            });
+
+            break;
+          }
+
+          case "response.incomplete":
+            const message =
+              event.response.error?.message ??
+              "Model response incomplete for unknown reason.";
+            throw new Error(message);
+
+          case "response.failed": {
+            const message =
+              event.response.error?.message ?? "Model response failed.";
+            throw new Error(message);
+          }
+
+          default:
+            break;
         }
       }
     } catch (err) {
@@ -102,5 +145,21 @@ export const runLoop = async (
 
       throw new Error("Error while llm generating");
     }
+
+    if (toolCallSet.size === 0) {
+      if (!finalText) {
+        throw new Error("Stream completed with no response");
+      }
+
+      await dbCtx.append({
+        type: "message",
+        role: "assistant",
+        content: finalText,
+      });
+    }
   }
+
+  throw new Error(
+    `Agent exceeded maximum of ${MAX_TURNS} turns without converging.`,
+  );
 };

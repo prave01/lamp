@@ -1,16 +1,16 @@
-import OpenAI from "openai";
-import { ZodType, toJSONSchema } from "zod";
+import { z, ZodType } from "zod";
+import type { ToolDefinition, ExtendedTool } from "./tools.types";
 
-export function toOpenAITool(definition: {
-  name: string;
-  description: string;
-  schema: ZodType;
-}): OpenAI.Responses.Tool {
+export const defineTool = <T extends ZodType>(
+  definition: ToolDefinition<T>,
+): ExtendedTool<T> => {
   return {
     name: definition.name,
-    type: "function" as const,
+    type: "function",
     description: definition.description,
-    parameters: toJSONSchema(definition.schema),
+    parameters: z.toJSONSchema(definition.inputSchema),
+    inputSchema: definition.inputSchema,
+    execute: definition.execute,
     strict: false,
   };
-}
+};
