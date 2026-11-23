@@ -10,11 +10,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 // The gateway runs every session on this model.
-const MODEL = "openai/gpt-oss-120b";
+const MODEL = "openai/gpt-4o-mini";
 
-function prettyArgs(raw: string) {
+// Stored tool args/output can be JSON, or JSON wrapped in a JSON string.
+function prettyJson(raw: string) {
   try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
+    let value: unknown = JSON.parse(raw);
+    for (let i = 0; i < 2 && typeof value === "string"; i++) {
+      try {
+        value = JSON.parse(value);
+      } catch {
+        break;
+      }
+    }
+    return typeof value === "string" ? value : JSON.stringify(value, null, 2);
   } catch {
     return raw;
   }
@@ -103,9 +112,7 @@ export default function ChatPage() {
               >
                 {message.parts.length === 0 && !message.error ? (
                   <p className="text-muted-foreground">
-                    {status === "creating"
-                      ? "Starting session…"
-                      : "Thinking…"}
+                    {status === "creating" ? "Starting session…" : "Thinking…"}
                   </p>
                 ) : null}
 
@@ -118,7 +125,12 @@ export default function ChatPage() {
                     <ToolCall
                       key={part.id}
                       name={part.name}
-                      args={prettyArgs(part.args)}
+                      args={prettyJson(part.args)}
+                      output={
+                        part.output !== undefined
+                          ? prettyJson(part.output)
+                          : undefined
+                      }
                       status={part.status}
                     />
                   ),

@@ -9,6 +9,7 @@
     "lint": "echo 'Add lint script here'"
   },
   "dependencies": {
+    "openai": "^7.25.0",
     "zod": "^4.6.5"
   },
   "exports": {

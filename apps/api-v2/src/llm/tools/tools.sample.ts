@@ -1,6 +1,5 @@
-import { defineTool } from ".";
 import z from "zod";
-import { ExtendedTool } from "./tools.types";
+import { defineTool } from "./tools.defineTool";
 
 export const WeatherSchema = z.object({
   location: z.string().describe("Location as a parameter"),

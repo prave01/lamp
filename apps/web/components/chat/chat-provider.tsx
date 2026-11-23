@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
+import type { ServerToClientEvents } from "@repo/shared";
 
 import {
   CreateSession,
-  DeleteSession,
   GetMessages,
   ListSessions,
   RunSession,
@@ -17,6 +17,7 @@ export type ToolPart = {
   id: string;
   name: string;
   args: string;
+  output?: string;
   status: "running" | "done";
 };
 export type AssistantPart = TextPart | ToolPart;
@@ -44,36 +45,12 @@ type ChatContextValue = {
   notice: string | null;
   send: (query: string) => void;
   select: (id: string | null) => void;
-  remove: (id: string) => void;
   dismissNotice: () => void;
 };
 
 // Messages typed before the server has created the session live under this key.
 const DRAFT = "draft";
 const EMPTY: ChatMessage[] = [];
-
-// The subset of the OpenAI Responses stream events the UI renders.
-type StreamEvent = {
-  type: string;
-  item_id?: string;
-  delta?: string;
-  arguments?: string;
-  message?: string;
-  item?: { type: string; id?: string; name?: string; arguments?: string };
-  response?: { error?: { message?: string } | null };
-};
-
-// A row of the `messages` table as sent by `session:messages`.
-type MessageRow = {
-  id: string;
-  role: "user" | "assistant" | "system" | "developer" | null;
-  type: "message" | "function_call" | "function_call_output";
-  content: string | null;
-  name: string | null;
-  call_id: string | null;
-  arguments: unknown;
-  createdAt: string;
-};
 
 const ChatContext = React.createContext<ChatContextValue | null>(null);
 
@@ -83,13 +60,37 @@ export function useChat() {
   return ctx;
 }
 
+type MessageRow = Parameters<
+  ServerToClientEvents["server:session:messages"]
+>[0]["messages"][number];
+
+// The raw OpenAI Responses stream event, as forwarded by the server.
+type StreamEvent = Parameters<
+  ServerToClientEvents["server:session:run:event"]
+>[0]["event"];
+
+// Folds one stream event into the assistant message's parts. Tool parts are
+// keyed by the output item id, which is what the argument events refer to.
 function applyEvent(parts: AssistantPart[], ev: StreamEvent): AssistantPart[] {
   switch (ev.type) {
+    case "response.output_text.delta": {
+      const exists = parts.some(
+        (p) => p.kind === "text" && p.id === ev.item_id,
+      );
+      if (!exists)
+        return [...parts, { kind: "text", id: ev.item_id, text: ev.delta }];
+      return parts.map((p) =>
+        p.kind === "text" && p.id === ev.item_id
+          ? { ...p, text: p.text + ev.delta }
+          : p,
+      );
+    }
+
     case "response.output_item.added":
     case "response.output_item.done": {
-      const item = ev.item;
-      if (item?.type !== "function_call" || !item.id) return parts;
-      const id = item.id;
+      const { item } = ev;
+      if (item.type !== "function_call") return parts;
+      const id = item.id ?? item.call_id;
       const exists = parts.some((p) => p.kind === "tool" && p.id === id);
       if (!exists) {
         return [
@@ -97,8 +98,8 @@ function applyEvent(parts: AssistantPart[], ev: StreamEvent): AssistantPart[] {
           {
             kind: "tool",
             id,
-            name: item.name ?? "tool",
-            args: item.arguments ?? "",
+            name: item.name,
+            args: item.arguments,
             status: "running",
           },
         ];
@@ -106,34 +107,24 @@ function applyEvent(parts: AssistantPart[], ev: StreamEvent): AssistantPart[] {
       if (ev.type === "response.output_item.done") {
         return parts.map((p) =>
           p.kind === "tool" && p.id === id
-            ? { ...p, name: item.name ?? p.name, args: item.arguments ?? p.args }
+            ? { ...p, name: item.name, args: item.arguments }
             : p,
         );
       }
       return parts;
     }
 
-    case "response.output_text.delta": {
-      const id = ev.item_id ?? "text";
-      const delta = ev.delta ?? "";
-      const exists = parts.some((p) => p.kind === "text" && p.id === id);
-      if (!exists) return [...parts, { kind: "text", id, text: delta }];
-      return parts.map((p) =>
-        p.kind === "text" && p.id === id ? { ...p, text: p.text + delta } : p,
-      );
-    }
-
     case "response.function_call_arguments.delta":
       return parts.map((p) =>
         p.kind === "tool" && p.id === ev.item_id
-          ? { ...p, args: p.args + (ev.delta ?? "") }
+          ? { ...p, args: p.args + ev.delta }
           : p,
       );
 
     case "response.function_call_arguments.done":
       return parts.map((p) =>
         p.kind === "tool" && p.id === ev.item_id
-          ? { ...p, args: ev.arguments ?? p.args }
+          ? { ...p, args: ev.arguments }
           : p,
       );
 
@@ -142,24 +133,18 @@ function applyEvent(parts: AssistantPart[], ev: StreamEvent): AssistantPart[] {
   }
 }
 
-function argsToString(value: unknown): string {
-  if (typeof value === "string") return value === "null" ? "" : value;
-  if (value == null) return "";
-  return JSON.stringify(value);
-}
-
 // Rebuilds the live-stream shape from stored rows: every user message opens a
 // turn, and all assistant text and tool calls until the next one fold into a
-// single assistant message.
+// single assistant message. System/developer rows are not shown.
 function rowsToMessages(rows: MessageRow[]): ChatMessage[] {
-  // The server's ordering isn't guaranteed, so sort here. Ties keep the
-  // reverse of arrival order, matching a newest-first response.
+  // `createdAt` is typed `Date` but arrives as an ISO string; ties keep the
+  // server's order.
   const ordered = rows
     .map((row, index) => ({ row, index }))
     .sort(
       (a, b) =>
         +new Date(a.row.createdAt) - +new Date(b.row.createdAt) ||
-        b.index - a.index,
+        a.index - b.index,
     )
     .map(({ row }) => row);
 
@@ -178,12 +163,17 @@ function rowsToMessages(rows: MessageRow[]): ChatMessage[] {
     if (row.type === "function_call") {
       current().parts.push({
         kind: "tool",
-        id: row.call_id ?? row.id,
+        id: row.callId ?? row.id,
         name: row.name ?? "tool",
-        args: argsToString(row.arguments),
+        args: row.arguments ?? "",
         status: "done",
       });
-    } else if (row.type === "message" && row.content) {
+    } else if (row.type === "function_call_output") {
+      const tool = current().parts.find(
+        (p): p is ToolPart => p.kind === "tool" && p.id === row.callId,
+      );
+      if (tool) tool.output = row.content ?? "";
+    } else if (row.content) {
       if (row.role === "user") {
         assistant = null;
         out.push({ id: row.id, role: "user", text: row.content });
@@ -194,6 +184,15 @@ function rowsToMessages(rows: MessageRow[]): ChatMessage[] {
   }
 
   return out;
+}
+
+function describeError(
+  data: Parameters<ServerToClientEvents["server:session:error"]>[0],
+) {
+  const details = Object.values(data.errors ?? {}).flat();
+  return details.length > 0
+    ? `${data.message}: ${details.join(", ")}`
+    : data.message;
 }
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
@@ -244,16 +243,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   React.useEffect(() => {
-    const finish = (key: string) => {
-      patchAssistant(key, (m) => ({
-        ...m,
-        parts: m.parts.map((p) =>
-          p.kind === "tool" ? { ...p, status: "done" as const } : p,
-        ),
-      }));
-      setStatus("idle");
-    };
-
     // Drop an in-flight history fetch so selecting the session retries it.
     const abandonLoad = () => {
       if (!loadingRef.current) return;
@@ -263,13 +252,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
 
     const fail = (message: string) => {
-      if (loadingRef.current) abandonLoad();
+      abandonLoad();
       if (statusRef.current === "idle") {
         setNotice(message);
         return;
       }
       patchAssistant(runningRef.current, (m) => ({ ...m, error: message }));
-      finish(runningRef.current);
+      setStatus("idle");
     };
 
     const onConnect = () => {
@@ -277,31 +266,40 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       ListSessions();
     };
 
+    // The schema types the timestamps as `Date`, but over the socket they
+    // arrive as ISO strings; `new Date()` accepts both.
+    const onList: ServerToClientEvents["server:session:list"] = ({
+      sessions: rows,
+    }) => {
+      setSessions(
+        rows
+          .map((r) => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            createdAt: new Date(r.createdAt).toISOString(),
+          }))
+          .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+      );
+    };
+
     const onDisconnect = () => {
       setConnected(false);
       abandonLoad();
-      if (statusRef.current !== "idle") fail("Connection to the server was lost.");
+      if (statusRef.current !== "idle")
+        fail("Connection to the server was lost.");
     };
 
-    const onLists = (payload: { data: SessionSummary[] }) => {
-      const rows = [...(payload.data ?? [])].sort(
-        (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-      );
-      setSessions(rows);
-    };
-
-    const onCreated = (payload: {
-      sessionId: string;
-      title: string;
-      description: string;
-    }) => {
+    const onCreated: ServerToClientEvents["server:session:created"] = (
+      payload,
+    ) => {
       const { sessionId } = payload;
       loadedRef.current.add(sessionId);
       setSessions((prev) => [
         {
           id: sessionId,
           title: payload.title,
-          description: payload.description,
+          description: payload.descrption,
           createdAt: new Date().toISOString(),
         },
         ...prev,
@@ -316,77 +314,77 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       RunSession(sessionId, pendingQueryRef.current);
     };
 
-    const onMessages = (payload: { sessionId: string; messages: MessageRow[] }) => {
-      const { sessionId } = payload;
+    // The payload has no top-level session id, so use the id on the rows and
+    // fall back to the session we asked for (an empty session has no rows).
+    const onMessages: ServerToClientEvents["server:session:messages"] = ({
+      messages: rows,
+    }) => {
+      const sessionId = rows[0]?.sessionId ?? loadingRef.current;
+      if (!sessionId) return;
+
       if (loadingRef.current === sessionId) {
         loadingRef.current = null;
         setLoadingId(null);
       }
       // A live stream already owns this thread; don't overwrite it.
-      if (statusRef.current !== "idle" && runningRef.current === sessionId) return;
+      if (statusRef.current !== "idle" && runningRef.current === sessionId)
+        return;
 
-      const rows = payload.messages ?? [];
       setThreads((prev) => ({ ...prev, [sessionId]: rowsToMessages(rows) }));
     };
 
-    const onEvent = (ev: StreamEvent) => {
-      if (ev.type === "error") {
-        fail(ev.message ?? "The model returned an error.");
+    const onRunEvent: ServerToClientEvents["server:session:run:event"] = ({
+      event,
+    }) => {
+      if (event.type === "error") {
+        fail(event.message);
         return;
       }
-      if (ev.type === "response.failed") {
-        fail(ev.response?.error?.message ?? "The response failed.");
+      if (event.type === "response.failed") {
+        fail(event.response.error?.message ?? "The response failed.");
         return;
       }
       patchAssistant(runningRef.current, (m) => ({
         ...m,
-        parts: applyEvent(m.parts, ev),
+        parts: applyEvent(m.parts, event),
       }));
     };
 
-    const onFinished = () => finish(runningRef.current);
+    const onFinished: ServerToClientEvents["server:session:run:finished"] =
+      () => {
+        patchAssistant(runningRef.current, (m) => ({
+          ...m,
+          parts: m.parts.map((p) =>
+            p.kind === "tool" ? { ...p, status: "done" as const } : p,
+          ),
+        }));
+        setStatus("idle");
+      };
 
-    const onDeleted = (payload: { sessionId: string }) => {
-      loadedRef.current.delete(payload.sessionId);
-      setSessions((prev) => prev.filter((s) => s.id !== payload.sessionId));
-      setThreads((prev) => {
-        const rest = { ...prev };
-        delete rest[payload.sessionId];
-        return rest;
-      });
-      setActiveId((cur) => (cur === payload.sessionId ? null : cur));
-    };
-
-    const onException = (err: { message?: string } | string) => {
-      fail(
-        typeof err === "string"
-          ? err
-          : (err?.message ?? "Something went wrong on the server."),
-      );
+    const onError: ServerToClientEvents["server:session:error"] = (data) => {
+      fail(describeError(data));
     };
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("session:lists", onLists);
-    socket.on("session:created", onCreated);
-    socket.on("session:messages", onMessages);
-    socket.on("session:event", onEvent);
-    socket.on("session:finished", onFinished);
-    socket.on("session:deleted", onDeleted);
-    socket.on("exception", onException);
+    socket.on("server:session:list", onList);
+    socket.on("server:session:created", onCreated);
+    socket.on("server:session:messages", onMessages);
+    socket.on("server:session:run:event", onRunEvent);
+    socket.on("server:session:run:finished", onFinished);
+    socket.on("server:session:error", onError);
 
     if (socket.connected) onConnect();
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("session:lists", onLists);
-      socket.off("session:created", onCreated);
-      socket.off("session:messages", onMessages);
-      socket.off("session:event", onEvent);
-      socket.off("session:finished", onFinished);
-      socket.off("session:deleted", onDeleted);
-      socket.off("exception", onException);
+      socket.off("server:session:list", onList);
+      socket.off("server:session:created", onCreated);
+      socket.off("server:session:messages", onMessages);
+      socket.off("server:session:run:event", onRunEvent);
+      socket.off("server:session:run:finished", onFinished);
+      socket.off("server:session:error", onError);
     };
   }, [patchAssistant, setStatus]);
 
@@ -437,7 +435,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const remove = React.useCallback((id: string) => DeleteSession(id), []);
   const dismissNotice = React.useCallback(() => setNotice(null), []);
 
   const messages = threads[activeId ?? DRAFT] ?? EMPTY;
@@ -454,7 +451,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       notice,
       send,
       select,
-      remove,
       dismissNotice,
     }),
     [
@@ -467,7 +463,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       notice,
       send,
       select,
-      remove,
       dismissNotice,
     ],
   );

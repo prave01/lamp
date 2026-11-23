@@ -2,142 +2,173 @@ import { Hono } from "hono";
 import { getConfig, validateENVs } from "./config";
 import { checkDatabaseConnection, db } from "./db";
 import { Server } from "socket.io";
-import { Server as BunEngine, WebSocketData } from "@socket.io/bun-engine";
+import { Server as BunEngine } from "@socket.io/bun-engine";
 import {
-  createSessionSchema,
-  sessionMetaDataSchema,
-  type ClientToServerEvents,
-  type ServerToClientEvents,
+	createSessionSchema,
+	sessionMetaDataSchema,
+	type ClientToServerEvents,
+	type ServerToClientEvents,
 } from "@repo/shared";
 import { generateText, runLoop } from "./llm/llm.openai";
-import z, { parse } from "zod";
+import z from "zod";
 import { messageTable, sessionTable } from "./db/db.schema";
 import { DbContext } from "./llm/context/db.context";
 import OpenAI from "openai";
+import { listSessionMessages, listSessions } from "./libs/db";
 
 const app = new Hono();
 
 app.get("/", (c) => {
-  return c.text("Hello Hono!");
+	return c.text("Hello Hono!");
 });
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents>({
-  cors: {
-    origin: "*",
-  },
+	cors: {
+		origin: "*",
+	},
 });
 
 const engine = new BunEngine({
-  path: "/socket.io/",
+	path: "/socket.io/",
+	cors: {
+    origin: "http://localhost:",
+		credentials: true,
+	},
 });
 
 io.bind(engine);
 
 io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
+	console.log("Client connected:", socket.id);
 
-  socket.on("session:create", async (data) => {
-    const {
-      success,
-      error,
-      data: parsedData,
-    } = createSessionSchema.safeParse(data);
+	socket.on("client:session:create", async (data) => {
+		const {
+			success,
+			error,
+			data: parsedData,
+		} = createSessionSchema.safeParse(data);
 
-    if (!success) {
-      return socket.emit("session:error", {
-        message: "Invalid payload",
-        errors: z.flattenError(error).fieldErrors,
-      });
-    }
+		if (!success) {
+			return socket.emit("server:session:error", {
+				message: "Invalid payload",
+				errors: z.flattenError(error).fieldErrors,
+			});
+		}
 
-    const response = await generateText(
-      parsedData.query,
-      "Generate proper session metadata, not so many words but easily understandable title and description",
-      "openai/gpt-4o-mini",
-      sessionMetaDataSchema,
-    );
+		const response = await generateText(
+			parsedData.query,
+			"Generate proper session metadata, not so many words but easily understandable title and description",
+			"openai/gpt-4o-mini",
+			sessionMetaDataSchema,
+		);
 
-    const [session] = await db
-      .insert(sessionTable)
-      .values({
-        title: response.title,
-        description: response.descrption,
-      })
-      .returning({
-        id: sessionTable.id,
-      });
-
-    await db.insert(messageTable).values({
-      sessionId: session.id,
-      type: "message",
-      role: "user",
-      content: parsedData.query,
-    });
-
-    socket.emit("session:created", {
-      sessionId: session.id,
-      title: response.title,
-      descrption: response.descrption,
-    });
-  });
-
-  socket.on("session:run", async ({ sessionId, query }) => {
-    const session = await db.query.sessionTable.findFirst({
-      where: {
-        id: sessionId,
-      },
-    });
+		const [session] = await db
+			.insert(sessionTable)
+			.values({
+				title: response.title,
+				description: response.descrption,
+			})
+			.returning({
+				id: sessionTable.id,
+			});
 
     if (!session) {
-      throw new Error(`No session found for ${sessionId}`);
-    }
+			throw new Error("No session found");
+		}
 
-    await runLoop(
-      query,
-      "Be an helpful assistant",
-      "openai/gpt-4o-mini",
-      new DbContext(session.id),
-      (event: OpenAI.Responses.ResponseStreamEvent) => {
-        if (event.type === "response.output_text.delta") {
-          socket.emit("session:run:event", {
-            text_delta: event.delta,
-          });
-        }
-      },
-    );
-  });
+		await db.insert(messageTable).values({
+			sessionId: session.id,
+			type: "message",
+			role: "user",
+			content: parsedData.query,
+		});
+
+		socket.emit("server:session:created", {
+			sessionId: session.id,
+			title: response.title,
+			descrption: response.descrption,
+		});
+	});
+
+	socket.on("client:session:run", async ({ sessionId, query }) => {
+		try {
+			const session = await db.query.sessionTable.findFirst({
+				where: {
+					id: sessionId,
+				},
+			});
+
+			if (!session) {
+				throw new Error(`No session found for ${sessionId}`);
+			}
+
+			await runLoop(
+				query,
+				"Be an helpful assistant",
+				"openai/gpt-4o-mini",
+				new DbContext(session.id),
+				(event: OpenAI.Responses.ResponseStreamEvent) => {
+					socket.emit("server:session:run:event", { event });
+				},
+			);
+
+			socket.emit("server:session:run:finished", { sessionId });
+		} catch (err) {
+			console.error("Error while running session", err);
+			socket.emit("server:session:error", {
+				message:
+					err instanceof Error ? err.message : "Error while running session",
+				errors: {},
+			});
+		}
+	});
+
+	socket.on("client:session:list", async () => {
+		const res = await listSessions();
+		socket.emit("server:session:list", {
+			sessions: res,
+		});
+	});
+
+	socket.on("client:session:messages", async ({ sessionId }) => {
+		const res = await listSessionMessages(sessionId);
+
+		socket.emit("server:session:messages", {
+			messages: res,
+		});
+	});
 });
 
 const { websocket, fetch: EngineFetch } = engine.handler();
 
 async function bootStrap() {
-  // validate all envs
-  validateENVs(process.env);
+	// validate all envs
+	validateENVs(process.env);
 
-  // check db connection
-  await checkDatabaseConnection();
+	// check db connection
+	await checkDatabaseConnection();
 
-  // get server config
-  const serverConfig = getConfig("server");
+	// get server config
+	const serverConfig = getConfig("server");
 
-  const server = Bun.serve({
-    port: serverConfig.PORT,
-    idleTimeout: 30,
+	const server = Bun.serve({
+		port: serverConfig.PORT,
+		idleTimeout: 30,
 
-    fetch(req, server) {
-      const { pathname } = new URL(req.url);
+		fetch(req, server) {
+			const { pathname } = new URL(req.url);
 
-      if (pathname.startsWith("/socket.io/")) {
-        return EngineFetch(req, server);
-      }
+			if (pathname.startsWith("/socket.io/")) {
+				return EngineFetch(req, server);
+			}
 
-      return app.fetch(req, server);
-    },
+			return app.fetch(req, server);
+		},
 
-    websocket,
-  });
+		websocket,
+	});
 
-  console.log("Server is running at", server.port);
+	console.log("Server is running at", server.port);
 }
 
 bootStrap();

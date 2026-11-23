@@ -5,8 +5,6 @@ const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
   "http://localhost:4001",
 );
 
-const session = "fc89eac8-9365-42da-9abd-2c8e55903643";
-
 socket.on("connect", async () => {
   socket.emit("session:create", { query: "Create whatsapp agent" });
 });

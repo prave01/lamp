@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Plus, Trash2 } from "lucide-react";
+import { Bot, Plus } from "lucide-react";
 
 import {
   useChat,
@@ -39,7 +39,7 @@ function groupSessions(sessions: SessionSummary[]) {
  * mobile sheet, so it must not rely on its container for layout.
  */
 export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { sessions, activeId, connected, select, remove } = useChat();
+  const { sessions, activeId, connected, select } = useChat();
   const groups = groupSessions(sessions);
 
   return (
@@ -86,7 +86,7 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
               {group.sessions.map((session) => {
                 const active = session.id === activeId;
                 return (
-                  <li key={session.id} className="group/item relative">
+                  <li key={session.id}>
                     <button
                       type="button"
                       aria-current={active ? "page" : undefined}
@@ -96,7 +96,7 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
                         onNavigate?.();
                       }}
                       className={cn(
-                        "flex h-8 w-full items-center rounded-md pr-8 pl-2 text-left text-sm outline-none",
+                        "flex h-8 w-full items-center rounded-md px-2 text-left text-sm outline-none",
                         "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                         "focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50",
                         "aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-accent-foreground",
@@ -104,15 +104,6 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     >
                       <span className="truncate">{session.title}</span>
                     </button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Delete ${session.title}`}
-                      onClick={() => remove(session.id)}
-                      className="absolute top-0.5 right-0.5 size-7 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 max-md:opacity-100"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
                   </li>
                 );
               })}

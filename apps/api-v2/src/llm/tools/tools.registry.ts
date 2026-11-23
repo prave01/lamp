@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { weather } from "./tools.sample";
 
 export const ToolRegistry = {
