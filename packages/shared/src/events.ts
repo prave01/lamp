@@ -43,6 +43,20 @@ export const sessionsSchema = z.object({
   ),
 });
 
+export const handleHITL = z.object({
+  approvalId: z.string(),
+  tool: z.object({
+    name: z.string(),
+    description: z.string(),
+    args: z.unknown(),
+  }),
+});
+
+export const handleHITLConsent = z.object({
+  approvalId: z.string(),
+  approved: z.boolean(),
+});
+
 export const sessionMessagesSchema = z.object({
   messages: z.array(
     z.object({
@@ -74,6 +88,7 @@ export interface ClientToServerEvents {
   "client:session:messages": (
     data: z.infer<typeof listSesssionMessages>,
   ) => void;
+  "client:tool:hitl": (data: z.infer<typeof handleHITLConsent>) => void;
 }
 
 export interface ServerToClientEvents {
@@ -89,4 +104,5 @@ export interface ServerToClientEvents {
   "server:session:messages": (
     data: z.infer<typeof sessionMessagesSchema>,
   ) => void;
+  "server:tool:hitl": (data: z.infer<typeof handleHITL>) => void;
 }

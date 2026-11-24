@@ -5,7 +5,7 @@ import { TriangleAlert, X } from "lucide-react";
 
 import { useChat, type ChatMessage } from "@/components/chat/chat-provider";
 import { Composer } from "@/components/chat/composer";
-import { Message, ToolCall } from "@/components/chat/message";
+import { ApprovalRequest, Message, ToolCall } from "@/components/chat/message";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -44,6 +44,8 @@ export default function ChatPage() {
     loading,
     connected,
     notice,
+    approval,
+    respond,
     send,
     dismissNotice,
   } = useChat();
@@ -167,6 +169,15 @@ export default function ChatPage() {
                 <X className="size-3.5" />
               </Button>
             </div>
+          ) : null}
+
+          {approval ? (
+            <ApprovalRequest
+              name={approval.name}
+              description={approval.description}
+              args={prettyJson(JSON.stringify(approval.args ?? {}))}
+              onRespond={respond}
+            />
           ) : null}
 
           <Composer

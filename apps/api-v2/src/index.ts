@@ -9,7 +9,7 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@repo/shared";
-import { generateText, runLoop } from "./llm/llm.openai";
+import { generateText, pending, runLoop } from "./llm/llm.openai";
 import z from "zod";
 import { messageTable, sessionTable } from "./db/db.schema";
 import { DbContext } from "./llm/context/db.context";
@@ -23,7 +23,7 @@ app.get("/", (c) => {
   return c.text("Hello Hono!");
 });
 
-const io = new Server<ClientToServerEvents, ServerToClientEvents>({
+export const io = new Server<ClientToServerEvents, ServerToClientEvents>({
   cors: {
     origin: "*",
   },
@@ -41,6 +41,15 @@ io.bind(engine);
 
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
+
+  socket.on("client:tool:hitl", ({ approvalId, approved }) => {
+    const p = pending.get(approvalId);
+
+    if (!p) return;
+
+    pending.delete(approvalId);
+    p.resolve(approved);
+  });
 
   socket.on("client:session:create", async (data) => {
     const {
@@ -123,6 +132,7 @@ using the getActiveSession tool, and when the sandbox created you can use that i
 
         "openai/gpt-4o-mini",
         new DbContext(session.id),
+        socket,
         (event: OpenAI.Responses.ResponseStreamEvent) => {
           socket.emit("server:session:run:event", { event });
         },

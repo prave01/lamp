@@ -7,6 +7,7 @@ import {
   CreateSession,
   GetMessages,
   ListSessions,
+  RespondApproval,
   RunSession,
   socket,
 } from "@/socket";
@@ -35,6 +36,15 @@ export type SessionSummary = {
 
 export type ChatStatus = "idle" | "creating" | "streaming";
 
+// A tool call the server is holding until the user approves or rejects it.
+export type PendingApproval = {
+  approvalId: string;
+  sessionId: string;
+  name: string;
+  description: string;
+  args: unknown;
+};
+
 type ChatContextValue = {
   sessions: SessionSummary[];
   activeId: string | null;
@@ -43,6 +53,9 @@ type ChatContextValue = {
   loading: boolean;
   connected: boolean;
   notice: string | null;
+  /** The approval request for the session being viewed, if any. */
+  approval: PendingApproval | null;
+  respond: (approved: boolean) => void;
   send: (query: string) => void;
   select: (id: string | null) => void;
   dismissNotice: () => void;
@@ -205,6 +218,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = React.useState(false);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [loadingId, setLoadingId] = React.useState<string | null>(null);
+  const [pendingApproval, setPendingApproval] =
+    React.useState<PendingApproval | null>(null);
 
   // Sessions whose history was fetched, or whose thread is built live.
   const loadedRef = React.useRef(new Set<string>());
@@ -253,6 +268,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const fail = (message: string) => {
       abandonLoad();
+      setPendingApproval(null);
       if (statusRef.current === "idle") {
         setNotice(message);
         return;
@@ -350,8 +366,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }));
     };
 
+    // The payload carries no session id; the approval belongs to the run.
+    const onHitl: ServerToClientEvents["server:tool:hitl"] = ({
+      approvalId,
+      tool,
+    }) => {
+      setPendingApproval({
+        approvalId,
+        sessionId: runningRef.current,
+        name: tool.name,
+        description: tool.description,
+        args: tool.args,
+      });
+    };
+
     const onFinished: ServerToClientEvents["server:session:run:finished"] =
       () => {
+        setPendingApproval(null);
         patchAssistant(runningRef.current, (m) => ({
           ...m,
           parts: m.parts.map((p) =>
@@ -373,6 +404,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     socket.on("server:session:run:event", onRunEvent);
     socket.on("server:session:run:finished", onFinished);
     socket.on("server:session:error", onError);
+    socket.on("server:tool:hitl", onHitl);
 
     if (socket.connected) onConnect();
 
@@ -385,6 +417,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       socket.off("server:session:run:event", onRunEvent);
       socket.off("server:session:run:finished", onFinished);
       socket.off("server:session:error", onError);
+      socket.off("server:tool:hitl", onHitl);
     };
   }, [patchAssistant, setStatus]);
 
@@ -437,8 +470,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const dismissNotice = React.useCallback(() => setNotice(null), []);
 
+  const respond = React.useCallback(
+    (approved: boolean) => {
+      if (!pendingApproval) return;
+      RespondApproval(pendingApproval.approvalId, approved);
+      setPendingApproval(null);
+    },
+    [pendingApproval],
+  );
+
   const messages = threads[activeId ?? DRAFT] ?? EMPTY;
   const loading = activeId !== null && loadingId === activeId;
+  const approval =
+    pendingApproval && pendingApproval.sessionId === (activeId ?? DRAFT)
+      ? pendingApproval
+      : null;
 
   const value = React.useMemo<ChatContextValue>(
     () => ({
@@ -449,6 +495,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       loading,
       connected,
       notice,
+      approval,
+      respond,
       send,
       select,
       dismissNotice,
@@ -461,6 +509,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       loading,
       connected,
       notice,
+      approval,
+      respond,
       send,
       select,
       dismissNotice,

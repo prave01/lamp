@@ -19,6 +19,10 @@ export function ListSessions() {
   socket.emit("client:session:list");
 }
 
+export function RespondApproval(approvalId: string, approved: boolean) {
+  socket.emit("client:tool:hitl", { approvalId, approved });
+}
+
 export function GetMessages(sessionId: string) {
   socket.emit("client:session:messages", { sessionId });
 }

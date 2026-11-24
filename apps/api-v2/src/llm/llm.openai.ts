@@ -5,10 +5,16 @@ import { db } from "../db";
 import z from "zod";
 
 import type { ToolCallMeta } from "./llm.types";
-import { executor, ToolResolver } from "./tools/index";
+import {
+  executor,
+  NEEDS_APPROVAL,
+  requestApproval,
+  ToolResolver,
+} from "./tools/index";
 import { ZodType } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { ToolRegistry } from "./tools/tools.registry";
+import { Socket } from "socket.io";
 
 const config = getConfig("openai");
 
@@ -22,11 +28,17 @@ export interface GenerateTextResult {
   toolCalls: Array<{ name: string; callId: string; arguments: string }>;
 }
 
+export const pending = new Map<
+  string,
+  { resolve: (ok: boolean) => void; sessionId: string }
+>();
+
 export const runLoop = async (
   query: string,
   systemPrompt: string,
   model: string,
   dbCtx: DbContext,
+  socket: Socket,
   onEvent?: (event: OpenAI.Responses.ResponseStreamEvent) => void,
 ) => {
   const MAX_TURNS = 10;
@@ -122,10 +134,10 @@ export const runLoop = async (
             // executor goes here
             const result = await executor(
               tool.name as keyof typeof ToolRegistry,
+              dbCtx.sessionId,
+              socket,
               event.arguments,
             );
-
-            console.log("Tool call result mame", result);
 
             await dbCtx.append({
               name: tool.name,

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bot, Copy, Wrench } from "lucide-react";
+import { Bot, Check, Copy, ShieldQuestion, Wrench, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,57 @@ export function Message({
             </Button>
           </div>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+/*
+ * A tool call the server is holding until a person decides. Sits above the
+ * composer, which stays disabled while the run is paused.
+ */
+export function ApprovalRequest({
+  name,
+  description,
+  args,
+  onRespond,
+}: {
+  name: string;
+  description: string;
+  args: string;
+  onRespond: (approved: boolean) => void;
+}) {
+  return (
+    <div
+      role="alertdialog"
+      aria-label={`Approve ${name}?`}
+      className="overflow-hidden rounded-lg border bg-card"
+    >
+      <div className="flex items-center gap-2 border-b bg-signal-tool-soft px-3 py-2">
+        <ShieldQuestion className="size-4 shrink-0 text-signal-tool" />
+        <span className="text-sm font-medium">Approval needed</span>
+        <Badge variant="tool" className="ml-auto font-mono">
+          <Wrench />
+          {name}
+        </Badge>
+      </div>
+      <div className="space-y-2 px-3 py-2 text-sm">
+        {description ? (
+          <p className="text-muted-foreground">{description}</p>
+        ) : null}
+        <pre className="overflow-x-auto rounded-md border bg-background px-3 py-2">
+          {args}
+        </pre>
+      </div>
+      <div className="flex justify-end gap-2 border-t px-3 py-2">
+        <Button variant="outline" size="sm" onClick={() => onRespond(false)}>
+          <X />
+          Reject
+        </Button>
+        <Button size="sm" onClick={() => onRespond(true)}>
+          <Check />
+          Approve
+        </Button>
       </div>
     </div>
   );
