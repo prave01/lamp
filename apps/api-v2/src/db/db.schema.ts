@@ -1,3 +1,4 @@
+import { Container } from "dockerode";
 import { defineRelations } from "drizzle-orm";
 import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
@@ -53,8 +54,7 @@ export const messageTable = pgTable("messages", {
 
 // sandbox table
 export const sandboxTable = pgTable("sandboxes", {
-  id: uuid().primaryKey().defaultRandom(),
-  sandboxId: text().notNull(),
+  id: text().primaryKey().notNull(),
   sessionId: uuid()
     .notNull()
     .references(() => sessionTable.id, { onDelete: "cascade" }),
@@ -67,18 +67,39 @@ export const sandboxTable = pgTable("sandboxes", {
 });
 
 // container table
+export const agentContainerTable = pgTable("agents", {
+  id: uuid().primaryKey().defaultRandom(),
+  sandboxId: text()
+    .notNull()
+    .references(() => sandboxTable.id, { onDelete: "cascade" }),
+  agentId: text().notNull(),
+  name: text("agent_name").notNull(),
+  cmd: text("cmd").array().notNull(),
+});
 
 //query relations
 export const relations = defineRelations(
   {
     sessionTable,
     messageTable,
+    sandboxTable,
+    agentContainerTable,
   },
   (r) => ({
     sessionTable: {
       messages: r.many.messageTable({
         from: r.sessionTable.id,
         to: r.messageTable.sessionId,
+      }),
+    },
+    sandboxTable: {
+      session: r.one.sessionTable({
+        from: r.sandboxTable.sessionId,
+        to: r.sessionTable.id,
+      }),
+      containers: r.many.agentContainerTable({
+        from: r.sandboxTable.id,
+        to: r.agentContainerTable.sandboxId,
       }),
     },
   }),

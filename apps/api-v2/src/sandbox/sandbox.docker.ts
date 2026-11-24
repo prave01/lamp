@@ -1,7 +1,7 @@
-import Docker from "dockerode";
 import { db } from "../db/index";
 import { getSession } from "../libs/db";
 import { sandboxTable } from "../db/db.schema";
+import { docker } from ".";
 
 export const createSandboxNetwork = async (sessionId: string) => {
   try {
@@ -10,10 +10,6 @@ export const createSandboxNetwork = async (sessionId: string) => {
     if (!session) {
       throw new Error(`No session found for ${sessionId}`);
     }
-
-    const docker = new Docker({
-      socketPath: "/var/run/docker.sock",
-    });
 
     const network = await docker.createNetwork({
       Name: `sandbox-${sessionId}`,
@@ -29,11 +25,11 @@ export const createSandboxNetwork = async (sessionId: string) => {
     const [sandbox] = await db
       .insert(sandboxTable)
       .values({
-        sandboxId: network.id,
+        id: network.id,
         sessionId,
       })
       .returning({
-        sandboxId: sandboxTable.sandboxId,
+        id: sandboxTable.id,
         status: sandboxTable.status,
       });
 
@@ -43,7 +39,7 @@ export const createSandboxNetwork = async (sessionId: string) => {
     });
 
     return {
-      sandboxId: sandbox?.sandboxId,
+      sandboxId: sandbox?.id,
     };
   } catch (err) {
     if (err instanceof Error) {
@@ -52,4 +48,8 @@ export const createSandboxNetwork = async (sessionId: string) => {
 
     throw new Error("Error while creating the sandbox");
   }
+};
+
+export const removeSandboxNetwork = async (sandboxId: string) => {
+  await docker.getNetwork(sandboxId).remove(); // container must be removed first
 };

@@ -117,7 +117,10 @@ io.on("connection", (socket) => {
 
       await runLoop(
         query,
-        "Be an helpful assistant, and when the user asked you to create a sandbox, you can get the sessionId by using the getActiveSession tool",
+        `Be an helpful assistant, and when the user asked you 
+to create a sandbox, you can get the sessionId by 
+using the getActiveSession tool, and when the sandbox created you can use that id to create a container inside the sandbox, so bascially use can use that getActiveSession`,
+
         "openai/gpt-4o-mini",
         new DbContext(session.id),
         (event: OpenAI.Responses.ResponseStreamEvent) => {

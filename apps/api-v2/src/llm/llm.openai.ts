@@ -43,6 +43,7 @@ export const runLoop = async (
     "createSandbox",
     "getActiveSession",
     "getWeather",
+    "createAgentContainer",
   ]);
 
   if (!message) {
