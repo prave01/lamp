@@ -6,8 +6,7 @@ export const WeatherSchema = z.object({
 });
 
 export const weather = defineTool({
-  name: "getWeather",
-  id: "weather-tool",
+  name: "getWeather" as const,
   description: "Get weather of the location",
   inputSchema: WeatherSchema,
   execute: ({ location }) => {

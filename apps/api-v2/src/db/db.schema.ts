@@ -7,17 +7,23 @@ export const messageRoleEnum = pgEnum("message_role", [
   "system",
   "developer",
 ]);
+
 export const messageTypeEnum = pgEnum("message_type", [
   "message",
   "function_call",
   "function_call_output",
 ]);
 
+export const sessionStatusEnum = pgEnum("session_status", ["active", "idle"]);
+
+export const sandboxStatusEnum = pgEnum("sandbox_status", ["running", "idle"]);
+
 // session table
 export const sessionTable = pgTable("sessions", {
   id: uuid().primaryKey().defaultRandom(),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  status: sessionStatusEnum("status").notNull().default("idle"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -44,6 +50,23 @@ export const messageTable = pgTable("messages", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+// sandbox table
+export const sandboxTable = pgTable("sandboxes", {
+  id: uuid().primaryKey().defaultRandom(),
+  sandboxId: text().notNull(),
+  sessionId: uuid()
+    .notNull()
+    .references(() => sessionTable.id, { onDelete: "cascade" }),
+  status: sandboxStatusEnum("status").notNull().default("idle"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// container table
 
 //query relations
 export const relations = defineRelations(

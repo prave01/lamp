@@ -20,8 +20,15 @@ export const ToolResolver = (
     });
 };
 
-export const executor = (name: keyof typeof ToolRegistry, args: string) => {
+export const executor = async (
+  name: keyof typeof ToolRegistry,
+  args: string,
+) => {
   const tool = ToolRegistry[name];
+
+  if (!tool) {
+    throw new Error(`Tool "${name}" not found in ToolRegistry`);
+  }
 
   const parsedArgs = tool.inputSchema.safeParse(JSON.parse(args));
 
@@ -29,5 +36,11 @@ export const executor = (name: keyof typeof ToolRegistry, args: string) => {
     throw new Error(`Invalid arguments: ${parsedArgs.error.message}`);
   }
 
-  return tool.execute(parsedArgs.data);
+  if (!tool.execute) {
+    throw new Error(`Tool "${name}" has no execute function`);
+  }
+
+  const res = await tool.execute(parsedArgs.data as never);
+
+  return res;
 };

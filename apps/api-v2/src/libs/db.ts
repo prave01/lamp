@@ -20,3 +20,11 @@ export const listSessionMessages = async (sessionId: string) => {
     },
   });
 };
+
+export const getSession = async (sessionId: string) => {
+  return await db.query.sessionTable.findFirst({
+    where: {
+      id: sessionId,
+    },
+  });
+};

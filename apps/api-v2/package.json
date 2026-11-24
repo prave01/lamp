@@ -7,6 +7,7 @@
     "@hono/bun": "^1.0.1",
     "@socket.io/bun-engine": "^0.1.2",
     "@types/pg": "^8.23.1",
+    "dockerode": "^5.0.1",
     "drizzle-kit": "1.0.0-rc.5",
     "drizzle-orm": "1.0.0-rc.5",
     "hono": "^4.13.16",
@@ -18,8 +19,9 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/bun": "latest",
     "@repo/shared": "workspace:*",
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "@types/dockerode": "^4.0.2"
   }
 }

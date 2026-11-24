@@ -165,6 +165,9 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+      dockerode:
+        specifier: ^5.0.1
+        version: 5.0.1(supports-color@7.2.0)
       drizzle-kit:
         specifier: 1.0.0-rc.5
         version: 1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@types/pg@8.23.1)(bun-types@1.4.5)(pg@8.23.1)(postgres@3.4.9)(zod@4.6.5))
@@ -202,6 +205,9 @@ importers:
       '@types/bun':
         specifier: latest
         version: 1.4.5
+      '@types/dockerode':
+        specifier: ^4.0.2
+        version: 4.0.2
 
   apps/tui:
     dependencies:

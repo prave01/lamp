@@ -39,7 +39,11 @@ export const runLoop = async (
     },
   });
 
-  const tools = ToolResolver(["getWeather"]);
+  const tools = ToolResolver([
+    "createSandbox",
+    "getActiveSession",
+    "getWeather",
+  ]);
 
   if (!message) {
     console.log("Added system prompt");
@@ -115,10 +119,12 @@ export const runLoop = async (
             });
 
             // executor goes here
-            const result = executor(
+            const result = await executor(
               tool.name as keyof typeof ToolRegistry,
               event.arguments,
             );
+
+            console.log("Tool call result mame", result);
 
             await dbCtx.append({
               name: tool.name,
@@ -158,6 +164,7 @@ export const runLoop = async (
         throw err;
       }
 
+      console.error(err);
       throw new Error("Error while llm generating");
     }
 
