@@ -72,9 +72,10 @@ export const agentContainerTable = pgTable("agents", {
   sandboxId: text()
     .notNull()
     .references(() => sandboxTable.id, { onDelete: "cascade" }),
-  agentId: text().notNull(),
+  agentId: text().notNull().unique(),
   name: text("agent_name").notNull(),
   cmd: text("cmd").array().notNull(),
+  status: text("status"),
 });
 
 //query relations

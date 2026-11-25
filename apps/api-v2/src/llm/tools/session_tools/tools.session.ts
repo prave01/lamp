@@ -1,6 +1,6 @@
-import { db } from "../../db";
-import { defineTool } from "./tools.defineTool";
 import z from "zod";
+import { defineTool } from "../tools.defineTool";
+import { db } from "../../../db/index";
 
 export const getCurrentActiveSession = defineTool({
   name: "getActiveSession",

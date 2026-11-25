@@ -16,6 +16,7 @@ import { DbContext } from "./llm/context/db.context";
 import OpenAI from "openai";
 import { getSession, listSessionMessages, listSessions } from "./libs/db";
 import { eq } from "drizzle-orm";
+import { startDockerEventListener } from "./sandbox/container/container.docker";
 
 const app = new Hono();
 
@@ -39,7 +40,7 @@ const engine = new BunEngine({
 
 io.bind(engine);
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   console.log("Client connected:", socket.id);
 
   socket.on("client:tool:hitl", ({ approvalId, approved }) => {
@@ -173,6 +174,9 @@ async function bootStrap() {
 
   // check db connection
   await checkDatabaseConnection();
+
+  // docker container event stream (once per process, not per client)
+  await startDockerEventListener();
 
   // get server config
   const serverConfig = getConfig("server");

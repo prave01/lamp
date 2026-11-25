@@ -5,12 +5,7 @@ import { db } from "../db";
 import z from "zod";
 
 import type { ToolCallMeta } from "./llm.types";
-import {
-  executor,
-  NEEDS_APPROVAL,
-  requestApproval,
-  ToolResolver,
-} from "./tools/index";
+import { executor, ToolResolver } from "./tools/index";
 import { ZodType } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { ToolRegistry } from "./tools/tools.registry";
@@ -54,7 +49,6 @@ export const runLoop = async (
   const tools = ToolResolver([
     "createSandbox",
     "getActiveSession",
-    "getWeather",
     "createAgentContainer",
   ]);
 

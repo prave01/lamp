@@ -28,3 +28,11 @@ export const getSession = async (sessionId: string) => {
     },
   });
 };
+
+export const getAgent = async (agentId: string) => {
+  return await db.query.agentContainerTable.findFirst({
+    where: {
+      agentId,
+    },
+  });
+};

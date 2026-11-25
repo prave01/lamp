@@ -9,7 +9,7 @@ import {
   ListSessions,
   RespondApproval,
   RunSession,
-  socket,
+  getSocket,
 } from "@/socket";
 
 export type TextPart = { kind: "text"; id: string; text: string };
@@ -396,6 +396,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       fail(describeError(data));
     };
 
+    const socket = getSocket();
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("server:session:list", onList);
@@ -452,7 +454,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const select = React.useCallback((id: string | null) => {
     setActiveId(id);
-    if (id && !loadedRef.current.has(id) && socket.connected) {
+    if (id && !loadedRef.current.has(id) && getSocket().connected) {
       loadedRef.current.add(id);
       loadingRef.current = id;
       setLoadingId(id);

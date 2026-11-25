@@ -42,7 +42,7 @@ export const createAgentContainer = defineTool({
 
     await container.start();
 
-    const stats = await container.stats({
+    await container.stats({
       stream: true,
     });
 
@@ -62,12 +62,3 @@ export const createAgentContainer = defineTool({
     };
   },
 });
-
-async function collect(stream: NodeJS.ReadableStream, maxBytes = 20_000) {
-  let out = "";
-  for await (const chunk of stream) {
-    out += chunk.toString();
-    if (out.length > maxBytes) break; // cap size so you don't flood the model
-  }
-  return out;
-}

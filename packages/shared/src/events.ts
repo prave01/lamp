@@ -79,6 +79,12 @@ export const listSesssionMessages = z.object({
   sessionId: z.uuid(),
 });
 
+export const sandboxWatchUnwatch = z.object({
+  sandboxId: z.string(),
+});
+
+export const containerEvenet = z.object({});
+
 export type sessionMetaData = z.infer<typeof sessionMetaDataSchema>;
 
 export interface ClientToServerEvents {
@@ -89,6 +95,8 @@ export interface ClientToServerEvents {
     data: z.infer<typeof listSesssionMessages>,
   ) => void;
   "client:tool:hitl": (data: z.infer<typeof handleHITLConsent>) => void;
+  "client:sandbox:watch": (data: z.infer<typeof sandboxWatchUnwatch>) => void;
+  "client:sandbox:unwatch": (data: z.infer<typeof sandboxWatchUnwatch>) => void;
 }
 
 export interface ServerToClientEvents {
