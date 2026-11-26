@@ -1,16 +1,24 @@
-import { createAgentContainer } from "./container_tools/tools";
+import {
+  createAgentContainer,
+  execCommand,
+  listSessionAgents,
+} from "./container_tools/tools";
 import { createSandbox } from "./sandbox_tools/tools";
-import { getCurrentActiveSession } from "./session_tools/tools.session";
+import { getUserFocusingSession } from "./session_tools/tools.session";
 
 export const ToolRegistry = {
   createSandbox,
-  getActiveSession: getCurrentActiveSession,
+  getUserFocusingSession,
   createAgentContainer,
+  execCommand,
+  listSessionAgents,
 };
 
 export const allowedList: Record<keyof typeof ToolRegistry, "core" | "false"> =
 {
   createSandbox: "core",
-  getActiveSession: "core",
+  getUserFocusingSession: "core",
   createAgentContainer: "core",
+  execCommand: "core",
+  listSessionAgents: "core",
 };

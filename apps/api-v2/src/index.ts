@@ -16,9 +16,27 @@ import { DbContext } from "./llm/context/db.context";
 import OpenAI from "openai";
 import { getSession, listSessionMessages, listSessions } from "./libs/db";
 import { eq } from "drizzle-orm";
-import { startDockerEventListener } from "./sandbox/container/container.docker";
+import { startDockerEventListener } from "./sandbox/container/container.helpers";
 
 const app = new Hono();
+
+const SYSTEM_PROMPT = `You are a helpful coding assistant that works inside a sandbox made of Docker containers (agents).
+
+## Setup
+- When the user asks you to create a sandbox, first call getActiveSession to get the sessionId, then call createSandbox with it.
+- Once the sandbox exists, create agents with createAgentContainer, passing the sandboxId you received and a short, descriptive name based on the agent's job (for example "backend-agent", "test-runner"). Names must be unique.
+- Use list_agents to see which agents exist in the current sandbox. Never invent a sandboxId, agent name or container id: use only values returned by tools.
+
+## Working in containers
+- Every file and command tool takes an "agent" argument. Choose the agent that matches the task, and call list_agents if you are unsure.
+- All files live under /workspace, which is shared by every agent in the sandbox. Use paths relative to /workspace or starting with /workspace/.
+- Containers run Alpine Linux with Node 22. Commands run with sh, not bash, so avoid bash-only syntax such as [[ ]] and arrays. Install tools with apk if needed.
+- Use read_file before editing, prefer edit_file for small changes, and use write_file for new files. Use run_command for installing packages, running scripts, and tests.
+
+## Behavior
+- If a tool returns { ok: false, error }, read the error, fix the cause, and retry with corrected arguments. Do not repeat the same failing call more than once.
+- Some actions need the user's approval. If the user rejects an action, do not retry it. Ask what they want instead.
+- Keep answers short. After finishing, say what you did and show the relevant output.`;
 
 app.get("/", (c) => {
   return c.text("Hello Hono!");
@@ -78,7 +96,7 @@ io.on("connection", async (socket) => {
       .values({
         title: response.title,
         description: response.descrption,
-        status: "active",
+        focus: "active",
       })
       .returning({
         id: sessionTable.id,
@@ -102,6 +120,27 @@ io.on("connection", async (socket) => {
     });
   });
 
+  socket.on("client:session:changeFocus", async ({ sessionId }) => {
+    await db
+      .update(sessionTable)
+      .set({
+        focus: "idle",
+      })
+      .where(eq(sessionTable.focus, "active"));
+
+    const [session] = await db
+      .update(sessionTable)
+      .set({
+        focus: "active",
+      })
+      .where(eq(sessionTable.id, sessionId))
+      .returning({
+        title: sessionTable.title,
+      });
+
+    console.log("User focus changed to session:", session?.title);
+  });
+
   socket.on("client:session:run", async ({ sessionId, query }) => {
     try {
       const session = await getSession(sessionId);
@@ -110,27 +149,9 @@ io.on("connection", async (socket) => {
         throw new Error(`No session found for ${sessionId}`);
       }
 
-      // update the status
-      await db
-        .update(sessionTable)
-        .set({
-          status: "idle",
-        })
-        .where(eq(sessionTable.status, "active"));
-
-      await db
-        .update(sessionTable)
-        .set({
-          status: "active",
-        })
-        .where(eq(sessionTable.id, sessionId));
-
       await runLoop(
         query,
-        `Be an helpful assistant, and when the user asked you 
-to create a sandbox, you can get the sessionId by 
-using the getActiveSession tool, and when the sandbox created you can use that id to create a container inside the sandbox, so bascially use can use that getActiveSession`,
-
+        SYSTEM_PROMPT,
         "openai/gpt-4o-mini",
         new DbContext(session.id),
         socket,

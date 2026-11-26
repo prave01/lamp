@@ -48,8 +48,10 @@ export const runLoop = async (
 
   const tools = ToolResolver([
     "createSandbox",
-    "getActiveSession",
+    "getUserFocusingSession",
     "createAgentContainer",
+    "execCommand",
+    "listSessionAgents",
   ]);
 
   if (!message) {
@@ -89,7 +91,7 @@ export const runLoop = async (
 
         switch (event.type) {
           case "response.output_text.delta":
-            process.stdout.write(event.delta);
+            // process.stdout.write(event.delta);
             break;
 
           case "response.output_text.done":
@@ -131,7 +133,10 @@ export const runLoop = async (
               dbCtx.sessionId,
               socket,
               event.arguments,
+              tool.call_id,
             );
+
+            console.log("Tool call output", result);
 
             await dbCtx.append({
               name: tool.name,

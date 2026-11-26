@@ -29,10 +29,10 @@ export const getSession = async (sessionId: string) => {
   });
 };
 
-export const getAgent = async (agentId: string) => {
+export const getAgent = async (id: string) => {
   return await db.query.agentContainerTable.findFirst({
     where: {
-      agentId,
+      id,
     },
   });
 };

@@ -5,6 +5,7 @@ import type { ServerToClientEvents } from "@repo/shared";
 
 import {
   CreateSession,
+  ChangeFocus,
   GetMessages,
   ListSessions,
   RespondApproval,
@@ -18,6 +19,8 @@ export type ToolPart = {
   id: string;
   name: string;
   args: string;
+  /** Matches `server:tool:ran`; `id` is the output item id instead. */
+  callId?: string;
   output?: string;
   status: "running" | "done";
 };
@@ -113,6 +116,7 @@ function applyEvent(parts: AssistantPart[], ev: StreamEvent): AssistantPart[] {
             id,
             name: item.name,
             args: item.arguments,
+            callId: item.call_id,
             status: "running",
           },
         ];
@@ -380,6 +384,31 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
+    const onToolRan: ServerToClientEvents["server:tool:ran"] = ({
+      sessionId,
+      call_id,
+    }) => {
+      setThreads((prev) => {
+        const list = prev[sessionId];
+        if (!list) return prev;
+        return {
+          ...prev,
+          [sessionId]: list.map((m) =>
+            m.role === "assistant"
+              ? {
+                  ...m,
+                  parts: m.parts.map((p) =>
+                    p.kind === "tool" && p.callId === call_id
+                      ? { ...p, status: "done" as const }
+                      : p,
+                  ),
+                }
+              : m,
+          ),
+        };
+      });
+    };
+
     const onFinished: ServerToClientEvents["server:session:run:finished"] =
       () => {
         setPendingApproval(null);
@@ -407,6 +436,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     socket.on("server:session:run:finished", onFinished);
     socket.on("server:session:error", onError);
     socket.on("server:tool:hitl", onHitl);
+    socket.on("server:tool:ran", onToolRan);
 
     if (socket.connected) onConnect();
 
@@ -420,6 +450,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       socket.off("server:session:run:finished", onFinished);
       socket.off("server:session:error", onError);
       socket.off("server:tool:hitl", onHitl);
+      socket.off("server:tool:ran", onToolRan);
     };
   }, [patchAssistant, setStatus]);
 
@@ -454,6 +485,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const select = React.useCallback((id: string | null) => {
     setActiveId(id);
+    if (id && getSocket().connected) ChangeFocus(id);
     if (id && !loadedRef.current.has(id) && getSocket().connected) {
       loadedRef.current.add(id);
       loadingRef.current = id;

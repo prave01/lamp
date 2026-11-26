@@ -4,6 +4,8 @@ import { Socket } from "socket.io";
 import { pending } from "../llm.openai";
 import { ClientToServerEvents, ServerToClientEvents } from "@repo/shared";
 import { createSandbox } from "./sandbox_tools/tools";
+import { getUserFocusingSession } from "./session_tools/tools.session";
+import { execCommand } from "./container_tools/tools";
 
 export const ToolResolver = (
   list: Array<keyof typeof ToolRegistry>,
@@ -25,8 +27,9 @@ export const ToolResolver = (
 export const executor = async (
   name: keyof typeof ToolRegistry,
   sessionId: string,
-  socket: Socket,
+  socket: Socket<ClientToServerEvents, ServerToClientEvents>,
   args: string,
+  call_id: string,
 ) => {
   const tool = ToolRegistry[name];
 
@@ -70,6 +73,13 @@ export const executor = async (
 
   try {
     const output = await tool.execute(parsedArgs.data as never);
+
+    socket.emit("server:tool:ran", {
+      name,
+      call_id,
+      sessionId,
+    });
+
     return { ok: true, output };
   } catch (err) {
     return {
@@ -107,4 +117,8 @@ const requestApproval = (
   });
 };
 
-export const NEEDS_APPROVAL = new Set([createSandbox.name]);
+export const NEEDS_APPROVAL = new Set([
+  createSandbox.name,
+  getUserFocusingSession.name,
+  execCommand.name,
+]);

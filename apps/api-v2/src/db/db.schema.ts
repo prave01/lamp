@@ -15,7 +15,7 @@ export const messageTypeEnum = pgEnum("message_type", [
   "function_call_output",
 ]);
 
-export const sessionStatusEnum = pgEnum("session_status", ["active", "idle"]);
+export const sessionFocusEnum = pgEnum("session_focus", ["active", "idle"]);
 
 export const sandboxStatusEnum = pgEnum("sandbox_status", ["running", "idle"]);
 
@@ -24,7 +24,7 @@ export const sessionTable = pgTable("sessions", {
   id: uuid().primaryKey().defaultRandom(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  status: sessionStatusEnum("status").notNull().default("idle"),
+  focus: sessionFocusEnum("focus").notNull().default("idle"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -68,13 +68,11 @@ export const sandboxTable = pgTable("sandboxes", {
 
 // container table
 export const agentContainerTable = pgTable("agents", {
-  id: uuid().primaryKey().defaultRandom(),
+  id: text().primaryKey(),
   sandboxId: text()
     .notNull()
     .references(() => sandboxTable.id, { onDelete: "cascade" }),
-  agentId: text().notNull().unique(),
   name: text("agent_name").notNull(),
-  cmd: text("cmd").array().notNull(),
   status: text("status"),
 });
 

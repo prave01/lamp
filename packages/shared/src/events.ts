@@ -83,7 +83,15 @@ export const sandboxWatchUnwatch = z.object({
   sandboxId: z.string(),
 });
 
-export const containerEvenet = z.object({});
+export const changeUserFocusSession = z.object({
+  sessionId: z.string(),
+});
+
+export const toolRan = z.object({
+  name: z.string(),
+  sessionId: z.string(),
+  call_id: z.string(),
+});
 
 export type sessionMetaData = z.infer<typeof sessionMetaDataSchema>;
 
@@ -97,6 +105,9 @@ export interface ClientToServerEvents {
   "client:tool:hitl": (data: z.infer<typeof handleHITLConsent>) => void;
   "client:sandbox:watch": (data: z.infer<typeof sandboxWatchUnwatch>) => void;
   "client:sandbox:unwatch": (data: z.infer<typeof sandboxWatchUnwatch>) => void;
+  "client:session:changeFocus": (
+    data: z.infer<typeof changeUserFocusSession>,
+  ) => void;
 }
 
 export interface ServerToClientEvents {
@@ -113,4 +124,5 @@ export interface ServerToClientEvents {
     data: z.infer<typeof sessionMessagesSchema>,
   ) => void;
   "server:tool:hitl": (data: z.infer<typeof handleHITL>) => void;
+  "server:tool:ran": (data: z.infer<typeof toolRan>) => void;
 }

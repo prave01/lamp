@@ -2,16 +2,6 @@ import { db } from "../db/index";
 import { getSession } from "../libs/db";
 import { sandboxTable } from "../db/db.schema";
 import { docker } from ".";
-import Dockerode from "dockerode";
-import { type Server } from "socket.io";
-import { ClientToServerEvents, ServerToClientEvents } from "@repo/shared";
-
-// export class SandboxManager {
-//   constructor(
-//     private docker: Dockerode,
-//     io: Server<ClientToServerEvents, ServerToClientEvents>,
-//   ) { }
-// }
 
 export const createSandboxNetwork = async (sessionId: string) => {
   try {

@@ -1,6 +1,6 @@
 import { db } from "../../../db";
 import { createSandboxNetwork } from "../../../sandbox/sandbox.docker";
-import { defineTool } from "../tools.defineTool";
+import { defineTool } from "../tools.helpers";
 import z from "zod";
 
 export const createSandbox = defineTool({

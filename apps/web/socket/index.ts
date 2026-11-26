@@ -51,6 +51,10 @@ export function RespondApproval(approvalId: string, approved: boolean) {
   getSocket().emit("client:tool:hitl", { approvalId, approved });
 }
 
+export function ChangeFocus(sessionId: string) {
+  getSocket().emit("client:session:changeFocus", { sessionId });
+}
+
 export function GetMessages(sessionId: string) {
   getSocket().emit("client:session:messages", { sessionId });
 }
