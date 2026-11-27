@@ -133,6 +133,7 @@ export default function ChatPage() {
                           ? prettyJson(part.output)
                           : undefined
                       }
+                      logs={part.logs}
                       status={part.status}
                     />
                   ),

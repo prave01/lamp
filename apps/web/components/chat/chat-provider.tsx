@@ -21,6 +21,8 @@ export type ToolPart = {
   args: string;
   /** Matches `server:tool:ran`; `id` is the output item id instead. */
   callId?: string;
+  /** Live exec output streamed by `server:tool:exec:log`, until `output` lands. */
+  logs?: string;
   output?: string;
   status: "running" | "done";
 };
@@ -386,7 +388,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const onToolRan: ServerToClientEvents["server:tool:ran"] = ({
       sessionId,
-      call_id,
+      callId,
     }) => {
       setThreads((prev) => {
         const list = prev[sessionId];
@@ -398,7 +400,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               ? {
                   ...m,
                   parts: m.parts.map((p) =>
-                    p.kind === "tool" && p.callId === call_id
+                    p.kind === "tool" && p.callId === callId
                       ? { ...p, status: "done" as const }
                       : p,
                   ),
@@ -407,6 +409,29 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           ),
         };
       });
+    };
+
+    // Exec events carry only a call id, so patch the tool part in the run's thread.
+    const patchTool = (callId: string, fn: (p: ToolPart) => ToolPart) =>
+      patchAssistant(runningRef.current, (m) => ({
+        ...m,
+        parts: m.parts.map((p) =>
+          p.kind === "tool" && p.callId === callId ? fn(p) : p,
+        ),
+      }));
+
+    const onExecLog: ServerToClientEvents["server:tool:exec:log"] = ({
+      callId,
+      text,
+    }) => {
+      patchTool(callId, (p) => ({ ...p, logs: (p.logs ?? "") + text }));
+    };
+
+    const onExecDone: ServerToClientEvents["server:tool:exec:done"] = ({
+      callId,
+      output,
+    }) => {
+      patchTool(callId, (p) => ({ ...p, output }));
     };
 
     const onFinished: ServerToClientEvents["server:session:run:finished"] =
@@ -437,6 +462,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     socket.on("server:session:error", onError);
     socket.on("server:tool:hitl", onHitl);
     socket.on("server:tool:ran", onToolRan);
+    socket.on("server:tool:exec:log", onExecLog);
+    socket.on("server:tool:exec:done", onExecDone);
 
     if (socket.connected) onConnect();
 
@@ -451,6 +478,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       socket.off("server:session:error", onError);
       socket.off("server:tool:hitl", onHitl);
       socket.off("server:tool:ran", onToolRan);
+      socket.off("server:tool:exec:log", onExecLog);
+      socket.off("server:tool:exec:done", onExecDone);
     };
   }, [patchAssistant, setStatus]);
 

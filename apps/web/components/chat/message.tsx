@@ -119,11 +119,13 @@ export function ToolCall({
   name,
   args,
   output,
+  logs,
   status = "done",
 }: {
   name: string;
   args: string;
   output?: string;
+  logs?: string;
   status?: "running" | "done" | "error";
 }) {
   return (
@@ -142,14 +144,14 @@ export function ToolCall({
         </span>
       </div>
       <pre className="overflow-x-auto px-3 py-2 text-foreground">{args}</pre>
-      {output ? (
+      {output || logs ? (
         <pre
           className={cn(
             "overflow-x-auto border-t px-3 py-2 text-foreground",
             status === "error" ? "bg-signal-error-soft" : "bg-signal-sandbox-soft",
           )}
         >
-          {output}
+          {output || logs}
         </pre>
       ) : null}
     </div>
