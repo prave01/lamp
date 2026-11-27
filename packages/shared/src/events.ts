@@ -102,6 +102,7 @@ export const execLog = z.object({
 export const execDone = z.object({
   callId: z.string(),
   output: z.string(),
+  exitCode: z.number().nullable().optional(),
 });
 
 export type sessionMetaData = z.infer<typeof sessionMetaDataSchema>;

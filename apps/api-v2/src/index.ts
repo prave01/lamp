@@ -11,7 +11,7 @@ import {
 } from "@repo/shared";
 import { generateText, pending, runLoop } from "./llm/llm.openai";
 import z from "zod";
-import { messageTable, sessionTable } from "./db/db.schema";
+import { sessionTable } from "./db/db.schema";
 import { DbContext } from "./llm/context/db.context";
 import OpenAI from "openai";
 import { getSession, listSessionMessages, listSessions } from "./libs/db";
@@ -106,13 +106,6 @@ io.on("connection", async (socket) => {
     if (!session) {
       throw new Error("No session found");
     }
-
-    await db.insert(messageTable).values({
-      sessionId: session.id,
-      type: "message",
-      role: "user",
-      content: parsedData.query,
-    });
 
     socket.emit("server:session:created", {
       sessionId: session.id,

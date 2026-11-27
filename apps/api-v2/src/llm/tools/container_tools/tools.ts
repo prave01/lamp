@@ -8,7 +8,10 @@ import {
 } from "../../../sandbox/container/container.docker";
 import { defineTool } from "../tools.helpers";
 import z from "zod";
-import { errMessage } from "../../../sandbox/container/container.helpers";
+import {
+  ContainerError,
+  errMessage,
+} from "../../../sandbox/container/container.helpers";
 
 export const createAgentContainer = defineTool({
   name: "createAgentContainer",
@@ -69,9 +72,19 @@ export const execCommand = defineTool({
       ctx?.socket.emit("server:tool:exec:done", {
         callId: ctx.callId,
         output: result.output,
+        exitCode: result.exitCode,
       });
+
+      return {
+        output: result.output,
+      };
     } catch (err) {
-      return err;
+      ctx?.socket.emit("server:tool:exec:done", {
+        callId: ctx.callId,
+        output: errMessage(err),
+        exitCode: err instanceof ContainerError ? (err.exitCode ?? null) : null,
+      });
+      throw err;
     }
   },
 });

@@ -61,7 +61,7 @@ export const execInContainer = async (
     );
   }
 
-  return { output };
+  return { output, exitCode: ExitCode };
 };
 
 export const writeContainerFile = async (
