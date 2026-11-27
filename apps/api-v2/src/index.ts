@@ -17,6 +17,7 @@ import OpenAI from "openai";
 import { getSession, listSessionMessages, listSessions } from "./libs/db";
 import { eq } from "drizzle-orm";
 import { startDockerEventListener } from "./sandbox/container/container.helpers";
+import { ServerOptions } from "node:http";
 
 const app = new Hono();
 

@@ -1,5 +1,6 @@
 import type OpenAI from "openai";
 import z from "zod";
+import { output } from "zod/mini";
 
 export const sessionMetaDataSchema = z.object({
   sessionId: z.uuid(),
@@ -90,7 +91,17 @@ export const changeUserFocusSession = z.object({
 export const toolRan = z.object({
   name: z.string(),
   sessionId: z.string(),
-  call_id: z.string(),
+  callId: z.string(),
+});
+
+export const execLog = z.object({
+  callId: z.string(),
+  text: z.string(),
+});
+
+export const execDone = z.object({
+  callId: z.string(),
+  output: z.string(),
 });
 
 export type sessionMetaData = z.infer<typeof sessionMetaDataSchema>;
@@ -125,4 +136,6 @@ export interface ServerToClientEvents {
   ) => void;
   "server:tool:hitl": (data: z.infer<typeof handleHITL>) => void;
   "server:tool:ran": (data: z.infer<typeof toolRan>) => void;
+  "server:tool:exec:log": (data: z.infer<typeof execLog>) => void;
+  "server:tool:exec:done": (data: z.infer<typeof execDone>) => void;
 }

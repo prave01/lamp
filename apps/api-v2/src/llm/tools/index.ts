@@ -29,7 +29,7 @@ export const executor = async (
   sessionId: string,
   socket: Socket<ClientToServerEvents, ServerToClientEvents>,
   args: string,
-  call_id: string,
+  callId: string,
 ) => {
   const tool = ToolRegistry[name];
 
@@ -72,11 +72,14 @@ export const executor = async (
   }
 
   try {
-    const output = await tool.execute(parsedArgs.data as never);
+    const output = await tool.execute(parsedArgs.data as never, {
+      socket,
+      callId,
+    });
 
     socket.emit("server:tool:ran", {
       name,
-      call_id,
+      callId,
       sessionId,
     });
 

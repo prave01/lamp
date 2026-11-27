@@ -55,9 +55,21 @@ export const execCommand = defineTool({
     containerId: z.string().describe("Id of the container"),
     cmd: z.array(z.string()).describe("Array of command"),
   }),
-  execute: async ({ containerId, cmd }) => {
+  execute: async ({ containerId, cmd }, ctx) => {
     try {
-      return await execInContainer(containerId, cmd);
+      const result = await execInContainer(containerId, cmd, (text) => {
+        ctx?.socket.emit("server:tool:exec:log", {
+          callId: ctx.callId,
+          text,
+        });
+      });
+
+      console.log("Exec result output", result.output);
+
+      ctx?.socket.emit("server:tool:exec:done", {
+        callId: ctx.callId,
+        output: result.output,
+      });
     } catch (err) {
       return err;
     }

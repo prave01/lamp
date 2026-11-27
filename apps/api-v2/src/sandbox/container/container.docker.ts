@@ -31,7 +31,11 @@ export const createContainer = async (
   return container;
 };
 
-export const execInContainer = async (id: string, cmd: string[]) => {
+export const execInContainer = async (
+  id: string,
+  cmd: string[],
+  onChunk?: (text: string) => void,
+) => {
   const container = await getContainerOrThrow(id);
 
   const exec = await container.exec({
@@ -40,10 +44,14 @@ export const execInContainer = async (id: string, cmd: string[]) => {
     AttachStderr: true,
     Cmd: cmd,
   });
+
   const stream = await exec.start({ Tty: true });
 
   let output = "";
-  for await (const chunk of stream) output += chunk.toString("utf-8");
+  for await (const chunk of stream) {
+    output += chunk.toString("utf-8");
+    onChunk?.(output);
+  }
 
   const { ExitCode } = await exec.inspect();
   if (ExitCode !== 0) {
@@ -52,6 +60,7 @@ export const execInContainer = async (id: string, cmd: string[]) => {
       ExitCode,
     );
   }
+
   return { output };
 };
 
